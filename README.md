@@ -2,7 +2,7 @@
 ### **A Technical Whitepaper for the Transition from Statistical to Structural AI**
 
 **Date:** December 30th 2025  
-**Project Lead:** Trương Minh Huy
+**Author:** Trương Minh Huy
 **Technology Stack:** $Cl_{4,1}$ Conformal Geometric Algebra (CGA), Llama 4 (MoE), Rust, FPGA (GAPU)
 
 ---
