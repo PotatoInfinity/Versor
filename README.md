@@ -15,7 +15,7 @@ Contemporary Large Language Models (LLMs) are fundamentally constrained by their
 
 ## **1. The Euclidean Crisis: Entropy and Dimensional Collapse**
 
-The scaling laws of current Transformers ($O(N^2)$) are nearing their physical and economic limits. This "Euclidean Bottleneck" stems from three primary pathologies:
+The scaling laws of current Transformers $O(N^2)$ are nearing their physical and economic limits. This "Euclidean Bottleneck" stems from three primary pathologies:
 1.  **Semantic Sparsity:** In a 4096-dimensional flat space, the **Curse of Dimensionality** ensures that almost all points are equidistant, forcing the model to rely on hyper-fine weights to distinguish nuance.
 2.  **Contextual Decay (The Memory Wall):** The Key-Value (KV) Cache is a non-compressed history. It is a linear list of points that grows until it exceeds VRAM, leading to the "Context Window" limitation.
 3.  **Logical Hallucination:** Standard vectors lack *Grade*. A vector representing "Mammal" and a vector representing "Dog" occupy the same topological rank, preventing the architecture from natively enforcing $A \subset B$ relationships.
