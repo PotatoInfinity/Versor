@@ -55,7 +55,7 @@ Tích ngoài tạo ra một **Nhị vectơ (Bivector)** đại diện cho **Mặ
 Đây là đột phá nền tảng của Geo-Llama. Chúng tôi giả định rằng một cuộc hội thoại không phải là một danh sách các điểm, mà là một **quỹ đạo trên đa tạp**.
 
 ### **4.1 Từ KV-Cache đến Trạng thái Spinor**
-Thay vì một cơ sở dữ liệu tĩnh, lịch sử hội thoại trong Geo-Llama là một **Rotor** (thuộc nhóm $Spin(4,1)$). Mỗi token mới sẽ được chuyển hóa thành một rotor $R_i$. Toàn bộ ngữ cảnh được nén trong một **Đa vectơ 32 thành phần** duy nhất $\Psi$ (Rotor Ngữ cảnh).
+Thay vì một cơ sở dữ liệu tĩnh, lịch sử hội thoại trong Geo-Llama là một **Rotor** (thuộc nhóm $Spin(4,1)$ ). Mỗi token mới sẽ được chuyển hóa thành một rotor $R_i$. Toàn bộ ngữ cảnh được nén trong một **Đa vectơ 32 thành phần** duy nhất $\Psi$ (Rotor Ngữ cảnh).
 
 $$ \Psi_{t+1} = R_{t} \Psi_{t} \tilde{R}_{t} $$
 
