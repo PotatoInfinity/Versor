@@ -1,7 +1,5 @@
 [Tiếng Việt](https://github.com/PotatoInfinity/Geo-Llama/blob/main/VN%20README.md)
 # **Geo-Llama: Towards Structural Intelligence via Conformal Manifolds and $Cl_{4,1}$ Recursive Isometries**
-![alt text](https://img.shields.io/badge/version-1.0.0--initial-blue) ![alt text](https://img.shields.io/badge/tech-Rust-blue) ![alt text](https://img.shields.io/badge/AI-Llama_3.2_1B-blue)
-
 **Date:** January 1st, 2026  
 **Author:** Trương Minh Huy  
 **Subject:** Geometric Deep Learning, High-Performance Computing, Structural Linguistics  
