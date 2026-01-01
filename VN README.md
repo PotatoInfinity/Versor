@@ -15,7 +15,7 @@ Các Mô hình Ngôn ngữ Lớn (LLMs) đương đại đang vấp phải nhữ
 ## **1. Khủng hoảng không gian Euclidean: Entropy và Sự sụp đổ chiều**
 
 Các định luật mở rộng (scaling laws) của kiến trúc Transformer hiện nay $O(N^2)$ đang chạm tới các giới hạn vật lý và kinh tế. "Nút thắt cổ chai Euclidean" này phát sinh từ ba vấn đề cốt lõi:
-1.  **Sự thưa thớt ngữ nghĩa (Semantic Sparsity):** Trong không gian phẳng 4096 chiều, **"Lời nguyền đa chiều"** khiến hầu hết các điểm dữ liệu trở nên cách đều nhau, buộc mô hình phải dựa vào các trọng số cực kỳ tinh vi để phân biệt các sắc thái nhỏ nhất.
+1.  **Sự thưa thớt ngữ nghĩa (Semantic Sparsity):** Trong không gian phẳng 4096 chiều, **"Lời nguyền đa chiều"** khiến hầu hết các trọng số trở nên cách đều nhau, buộc mô hình phải dựa vào các trọng số cực kỳ tinh vi để phân biệt các sắc thái nhỏ nhất.
 2.  **Sự suy giảm ngữ cảnh (Rào cản bộ nhớ):** KV-Cache hiện nay là một lịch sử không nén, một danh sách các điểm tăng trưởng tuyến tính cho đến khi tràn VRAM, dẫn đến giới hạn của "Cửa sổ ngữ cảnh".
 3.  **Ảo giác logic:** Các vectơ tiêu chuẩn thiếu khái niệm *Cấp (Grade)*. Một vectơ đại diện cho "Động vật" và một vectơ cho "Con chó" có cùng thứ hạng topo, khiến mô hình không thể thực thi các quan hệ bao hàm $A \subset B$ một cách tự nhiên.
 
