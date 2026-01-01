@@ -3,7 +3,6 @@
 
 **Date:** January 1st, 2026  
 **Author:** Trương Minh Huy  
-**Affiliation:** Advanced Geometric Intelligence Research (AGIR)  
 **Subject:** Geometric Deep Learning, High-Performance Computing, Structural Linguistics  
 
 ---
