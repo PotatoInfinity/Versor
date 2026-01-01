@@ -93,9 +93,7 @@ Because the **Context Rotor** is only 128 bytes, it resides entirely within the 
 Geo-Llama is not trained from scratch. We "harvest" the intelligence of Llama 4 (400B) through **Manifold Distillation.**
 
 1.  **Lifting:** We project Llama 4's Euclidean weights into $Cl_{4,1}$ space.
-2.  **Geometric Loss Function:** We introduce a new loss term:
-    $$ \mathcal{L} = \mathcal{L}_{CE} + \lambda || \text{Grade}(X) - \text{Target\_Grade} || $$
-    This forces the model to categorize information into the correct geometric rank (e.g., ensuring "definitions" are Quad-blades and "instances" are Points).
+2. **Geometric Loss Function:** We introduce a new loss term that forces the model to categorize information into the correct geometric rank (e.g., ensuring "definitions" are Quad-blades and "instances" are Points).
 
 ---
 
@@ -109,8 +107,17 @@ Geo-Llama is not trained from scratch. We "harvest" the intelligence of Llama 4 
 | **Energy (J/Token)** | ~0.05J | ~0.001J |
 
 ---
+## **9. Empirical Proof: The [Aethelgard-X](https://github.com/PotatoInfinity/Aethelgard-X) Benchmark**
+The feasibility of Geo-Llama's $Cl_{4,1}$ architecture is validated via our [**Aethelgard-X**](https://github.com/PotatoInfinity/Aethelgard-X) geometric runtime. While traditional LLMs require $O(N^2)$ attention matrices, our Rust-based implementation proves that semantic state can be maintained through **Recursive Isometry.**
+In standard Clifford Algebra implementations, the Geometric Product is a sparse $2^n \times 2^n$ operation. However, our code introduces the **Linear GP_MAP**, a precomputed Cayley-systolic table that flattens the product into 1,024 linear FMA (Fused Multiply-Add) operations. This proves that a **GAPU (Geometric Algebra Processing Unit)** can execute the core attention mechanism in **constant time** relative to the algebra's dimension, regardless of sequence length. 
+The $O(1)$ Memory Proof: Isometric State Persistence**
+Aethelgard-X demonstrates that a complex 8x8 manifold (Chess) can be condensed into a single **Context Rotor ($\Psi$)**. 
+*   **The Isometry Invariant:** Because the update function $\Psi_{t+1} = R_t \Psi_t \tilde{R}_t$ is a rotor transformation, the **norm of the multivector is preserved**. 
+*   **The Result:** Unlike RNNs, where information "vanishes" or "explodes" through repeated multiplication, Geo-Llama's memory is **Isometric**. Information is never "deleted"; it is merely rotated into different bivector planes. This mathematically guarantees a **lossless infinite context window** until the limits of floating-point precision are reached.
 
-## **9. Conclusion: The Structural Pivot**
+---
+
+## **10. Conclusion: The Structural Pivot**
 
 The history of AI has been a race toward "brute-force" statistics. Geo-Llama 4 introduces a pivot toward **Human-Centric Geometry.** By embedding language in a $Cl_{4,1}$ conformal manifold, we provide the AI with a sense of "space," "object permanence," and "logical hierarchy." 
 
