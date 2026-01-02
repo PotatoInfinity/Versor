@@ -101,8 +101,8 @@ Geo-Llama is not trained from scratch. We "harvest" the intelligence of Llama 3.
 | **Energy (J/Token)** | ~0.05J | ~0.001J |
 
 ---
-## **8. Empirical Proof: The [Aethelgard-X](https://github.com/PotatoInfinity/Aethelgard-X) Benchmark**
-The feasibility of Geo-Llama's $Cl_{4,1}$ architecture is validated via our [**Aethelgard-X**](https://github.com/PotatoInfinity/Aethelgard-X) geometric runtime. While traditional LLMs require $O(N^2)$ attention matrices, our Rust-based implementation proves that semantic state can be maintained through **Recursive Isometry.**
+## **8. Empirical Proof: The [Aethelgard-X](https://github.com/PotatoInfinity/Geo-Llama/tree/main/Aethelgard-X) Benchmark**
+The feasibility of Geo-Llama's $Cl_{4,1}$ architecture is validated via our [**Aethelgard-X**](https://github.com/PotatoInfinity/Geo-Llama/tree/main/Aethelgard-X) geometric runtime. While traditional LLMs require $O(N^2)$ attention matrices, our Rust-based implementation proves that semantic state can be maintained through **Recursive Isometry.**
 In standard Clifford Algebra implementations, the Geometric Product is a sparse $2^n \times 2^n$ operation. However, our code introduces the **Linear GP_MAP**, a precomputed Cayley-systolic table that flattens the product into 1,024 linear FMA (Fused Multiply-Add) operations. This proves that a **GAPU (Geometric Algebra Processing Unit)** can execute the core attention mechanism in **constant time** relative to the algebra's dimension, regardless of sequence length. 
 
 ## **8.1 The $O(1)$ Memory Proof: Isometric State Persistence**
