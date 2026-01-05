@@ -239,24 +239,28 @@ def exp_map(bivector_batch):
     """
     Maps a batch of bivectors to Rotors using the exponential map.
     R = exp(B) approx 1 + B + B^2/2! + ...
-    bivector_batch: (..., 32)
     """
     is_torch = hasattr(bivector_batch, 'device')
     if is_torch:
         import torch
         identity = torch.zeros_like(bivector_batch)
         identity[..., 0] = 1.0
+        
+        # STABILITY FIX: Clamp bivector magnitude
+        # Taylor series diverges if ||B|| is large.
+        # We treat large rotations as multiple small ones or just clamp.
+        B = torch.clamp(bivector_batch, min=-1.0, max=1.0) 
+        
         # Taylor expansion (3rd order for better precision)
-        B = bivector_batch
         B2 = batch_geometric_product(B, B)
         B3 = batch_geometric_product(B2, B)
         return identity + B + (B2 * 0.5) + (B3 * (1.0/6.0))
     else:
+        # Numpy implementation (keep as is)
         identity = np.zeros(bivector_batch.shape, dtype=np.float32)
         identity[..., 0] = 1.0
         B = bivector_batch
         B2 = batch_geometric_product(B, B)
-        # B3 = batch_geometric_product(B2, B) # Skipping for numpy speed in PoC
         return identity + B + (B2 * 0.5)
 
 def inverse(R):
