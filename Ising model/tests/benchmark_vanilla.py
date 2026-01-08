@@ -7,8 +7,8 @@ import os
 import sys
 import numpy as np
 import time
-#torch.manual_seed(24)
-#np.random.seed(24) # For reproducibility
+#torch.manual_seed(27)
+#np.random.seed(27) # For reproducibility
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from geo_transformer.core import conformal_lift
@@ -56,6 +56,8 @@ def train_model(model, train_loader, val_loader, model_name):
     
     best_val_acc = -1.0
     best_state = None
+    epochs_no_improve = 0
+    patience = 10
     
     for epoch in range(EPOCHS):
         model.train()
@@ -103,8 +105,15 @@ def train_model(model, train_loader, val_loader, model_name):
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
         
         print(f"Epoch {epoch+1:2d} | Train Loss: {train_loss:.4f} | Val Acc: {val_acc:.4f} | Best: {best_val_acc:.4f}")
+        
+        if epochs_no_improve >= patience:
+            print(f"--- Early stopping triggered for {model_name} after {epoch+1} epochs ---")
+            break
         
     # Restore Best State
     if best_state is not None:
