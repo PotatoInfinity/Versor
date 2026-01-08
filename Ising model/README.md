@@ -3,7 +3,7 @@
 ## 1. Executive Summary
 We demonstrated that a native Geometric Algebra Transformer significantly outperforms standard Transformer architectures in identifying 2D Ising model phase transitions, specifically near the **Critical Temperature ($T=2.269$)**. 
 
-Our findings prove that **Geo-Llama** attains a state-of-the-art "Information Ceiling" for the $8 \times 8$ lattice with **25% fewer parameters** and up to **4x faster convergence** than non-geometric baselines.
+Our findings prove that **Geo-Llama** attains a state-of-the-art "Information Ceiling" for the $8 \times 8$ lattice with **25% fewer parameters** and **faster convergence** than non-geometric baselines.
 
 ---
 
@@ -21,8 +21,8 @@ Our findings prove that **Geo-Llama** attains a state-of-the-art "Information Ce
 | Phase | Vanilla Accuracy | Geo-Llama Accuracy | Significance |
 | :--- | :--- | :--- | :--- |
 | **Ordered (T=1.0)** | ~98% | ~98% | Parity |
-| **Critical (T=2.269)** | **~49%** | **~91%** | **+42% Gain** |
-| **Disordered (T=5.0)** | ~100% | ~96% | Stability |
+| **Critical (T=2.269)** | **~70%** | **~92%** | **+22% Gain** |
+| **Disordered (T=5.0)** | ~90% | ~100% | **+10% Gain** |
 
 ---
 
