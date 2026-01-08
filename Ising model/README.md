@@ -28,16 +28,13 @@ Our findings prove that **Geo-Llama** attains a state-of-the-art "Information Ce
 
 ## 3. Key Breakthroughs
 
-### A. The "Information Ceiling" Discovery
-We identified a hard mathematical limit of **96.6% accuracy** for the 8x8 grid. At this resolution, a small subset of critical samples are statistically indistinguishable. The Geo-Llama achieved this limit consistently, defining the **Bayes Error Rate** for the dataset.
-
-### B. Convergence Acceleration (Rotor Advantage)
+### A. Convergence Acceleration (Rotor Advantage)
 We evaluated two pooling strategies within the Geometric framework:
 - **Geo-Mean**: Standard multivector averaging (reached limit at ~Epoch 31).
 - **Geo-Rotor**: Recursive Geometric Transformation (reached limit at **Epoch 8**).
 - **Impact**: The `Geo-Rotor` architecture identifies the physical signature of the Ising model **3.8x faster**, proving that sequential geometric updates are superior for capturing spatial correlations.
 
-### C. Parameter Efficiency vs. Expressivity
+### B. Parameter Efficiency vs. Expressivity
 Despite having a **parameter deficit**, the Geo-Llama's "Geometric Intuition" allows it to encode physical symmetries (rotation, scale) natively. This eliminates the need for the model to "learn" geometry from scratch, which is the primary failure point of the Vanilla model in the Critical phase.
 
 ---
