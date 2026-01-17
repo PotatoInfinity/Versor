@@ -1,6 +1,6 @@
 # **Geo-Llama: Towards Structural Intelligence via Conformal Manifolds and $Cl_{4,1}$ Recursive Isometries**
 **Date:** January 1st, 2026  
-**Author:** Trương Minh Huy  
+**Author:** Trương Minh Huy, Edward George Hirst
 **Subject:** Geometric Deep Learning, High-Performance Computing, Structural Linguistics  
 ![alt text](https://img.shields.io/badge/version-1.0.0--initial-blue) ![alt text](https://img.shields.io/badge/tech-Rust-blue) ![alt text](https://img.shields.io/badge/AI-Llama_3.2_1B-blue)
 
@@ -91,49 +91,26 @@ Geo-Llama is not trained from scratch. We "harvest" the intelligence of Llama 3.
 
 ---
 
-## **7. Expected Results**
-
-| Metric | Llama 3.2 (Baseline) | Geo-Llama (Pure Architecture) | 
-| :--- | :--- | :--- |
-| **Context Window** | 128k (Hard Limit) | $\infty$ (Mathematical) | 
-| **Memory per Token** | Quadratic Scaling | $O(1)$ Constant |
-| **Logical Consistency** | Probabilistic | Geometric (Certain) |
-| **Energy (J/Token)** | ~0.05J | ~0.001J |
-
----
-## **8. Empirical Proof: The [Aethelgard-X](https://github.com/PotatoInfinity/Geo-Llama/tree/main/Aethelgard-X) Benchmark**
-The feasibility of Geo-Llama's $Cl_{4,1}$ architecture is validated via our [**Aethelgard-X**](https://github.com/PotatoInfinity/Geo-Llama/tree/main/Aethelgard-X) geometric runtime. While traditional LLMs require $O(N^2)$ attention matrices, our Rust-based implementation proves that semantic state can be maintained through **Recursive Isometry.**
-In standard Clifford Algebra implementations, the Geometric Product is a sparse $2^n \times 2^n$ operation. However, our code introduces the **Linear GP_MAP**, a precomputed Cayley-systolic table that flattens the product into 1,024 linear FMA (Fused Multiply-Add) operations. This proves that a **GAPU (Geometric Algebra Processing Unit)** can execute the core attention mechanism in **constant time** relative to the algebra's dimension, regardless of sequence length. 
-
-## **8.1 The $O(1)$ Memory Proof: Isometric State Persistence**
-Aethelgard-X demonstrates that a complex 8x8 manifold (Chess) can be condensed into a single **Context Rotor ($\Psi$)**. 
-*   **The Isometry Invariant:** Because the update function $\Psi_{t+1} = R_t \Psi_t \tilde{R}_t$ is a rotor transformation, the **norm of the multivector is preserved**. 
-*   **The Result:** Unlike RNNs, where information "vanishes" or "explodes" through repeated multiplication, Geo-Llama's memory is **Isometric**. Information is never "deleted"; it is merely rotated into different bivector planes. This mathematically guarantees a **lossless infinite context window** until the limits of floating-point precision are reached.
-
----
-
-## **9. Limitations:**
-## **9.1 Precision loss**
+## **7. Limitations:**
+### **7.1 Precision loss**
 While the **Recursive Rotor Accumulator** is mathematically $O(1)$ in space, it is not $O(1)$ in **numerical stability**. Over a context of millions of tokens, the Rotor $\Psi$ can "drift" off the $Spin(4,1)$ manifold. The state stops being a "Unit Rotor" and becomes a "Geometric Soup." We must implement periodic **Gram-Schmidt Orthonormalization** or "Rotor Re-projecting," which adds a small computational tax and can introduce "micro-jump" artifacts in the model’s reasoning.
-## **9.2 The Binding Problem**
+### **7.2 The Binding Problem**
 By splitting the context into 64 independent manifolds, we solve the capacity issue, but we introduce a **Binding Problem**. How do we know that "Head 5" (which knows the subject is 'The King') relates to "Head 42" (which knows the action is 'abdicated')?
 In standard Transformers, a dense Feed-Forward Network (FFN) mixes these features. In Geo-Llama, we introduce a lightweight **"Manifold Mixing" layer**—a standard linear projection that allows information to bleed between the 64 parallel rotors between time-steps, ensuring global coherence without breaking the geometric invariant within the heads.
-## **9.3 Information Loss**
+### **7.3 Information Loss**
 Llama-3.2 was trained to minimize a loss function based on the **Dot Product** (Cosine Similarity). In Clifford space, similarity is defined by the **Geometric Product**. Uplifting a pre-trained Euclidean model like Llama-3.2 is like trying to translate a 2D painting into a 3D sculpture. We cannot "perfectly" map Euclidean space to Conformal space without some information loss. In the future, a viable solution is to develop AI that is specifically tuned for our method. However, training a model where weights are Rotors is significantly more computationally expensive than training standard weights.
-## **9.4 Recency Bias**
+### **7.4 Recency Bias**
 Because $\Psi$ is updated recursively (like an RNN or SSM), it inherently favors recent information. In a standard Transformer, token #1 and token #10,000 are equally "visible" via the Attention Matrix. In Geo-Llama, token #1 has been "rotated" 9,999 times by the time it reaches the current state.
-## **9.5 Hardware "Sparse-Tax"**
+### **7.5 Hardware "Sparse-Tax"**
 Geometric Algebra products are **highly structured but sparse**. If we use standard `Linear` layers, we are wasting 70-80% capacity on zeros or redundant calculations.
 
 ---
 
+## **8. Hybrid Architecture: The Best of Both Worlds**
 
+To mitigate the "Information Loss" (7.3) and "Precision Drift" (7.1) inherent in pure recursive manifolds, we propose a parallel-stream architecture. This design treats the Transformer as the **Lexical System (Left Brain)** and the Geo-Llama Rotor as the **Structural System (Right Brain)**.
 
-## **10. Hybrid Architecture: The Best of Both Worlds**
-
-To mitigate the "Information Loss" (9.3) and "Precision Drift" (9.1) inherent in pure recursive manifolds, we propose a parallel-stream architecture. This design treats the Transformer as the **Lexical System (Left Brain)** and the Geo-Llama Rotor as the **Structural System (Right Brain)**.
-
-### **10.1 The Dual-Stream Pipeline**
+### **8.1 The Dual-Stream Pipeline**
 
 ```text
 Input Tokens
@@ -147,13 +124,13 @@ Input Tokens
                    Integrated Output
 ```
 
-### **10.2 Functional Allocation**
+### **8.2 Functional Allocation**
 
 The hybrid approach creates a symbiotic relationship where the weaknesses of one are the strengths of the other:
 
 *   **The Transformer Stream handles:**
     *   **Exact Recall:** Storing high-entropy data such as phone numbers, specific code syntax, and rare proper nouns.
-    *   **Short-Term Buffering:** Maintaining a local sliding window of the last 2,048 tokens to prevent "Recency Bias" (9.4).
+    *   **Short-Term Buffering:** Maintaining a local sliding window of the last 2,048 tokens to prevent "Recency Bias" (7.4).
     *   **Bit-Perfect Precision:** Acting as a "Check-Sum" for the geometric state.
 
 *   **The Geo-Llama Stream handles:**
@@ -161,7 +138,7 @@ The hybrid approach creates a symbiotic relationship where the weaknesses of one
     *   **Hierarchy & Logic:** Enforcing category-membership (e.g., ensuring a character's traits in a novel remain consistent over 500 pages).
     *   **Relational Reasoning:** Computing the "Plane of Thought" (Bivectors) to understand how different segments of a long document intersect.
 
-### **10.3 GCA: Geometry-Conditioned Attention**
+### **8.3 GCA: Geometry-Conditioned Attention**
 The critical innovation in this hybrid model is the **Geometry-Conditioned Attention (GCA)** mechanism. We do not simply concatenate the outputs; we use the **Context Rotor $\Psi$** to "bias" the standard Transformer attention.
 
 Standard Attention utilizes $QK^T$. In GCA, we modify the attention weights by the **geometric orientation** of the current state:
@@ -173,7 +150,7 @@ We project the global context $\Psi$ onto the bivector grade $\langle \Psi \rang
 *   **$\lambda$ (Structural Constant):** A learnable parameter that dictates how much the "Geometric Logic" should override "Statistical Probability."
 *   **The Stabilizer:** The term $Q_i \wedge K_j$ projects the relationship between tokens into the $Cl_{4,1}$ manifold. If the "Lexical" attention ($QK^T$) suggests a relationship that is geometrically impossible (e.g., a "Circle" being a subset of a "Square" in the semantic manifold), the Rotor $\Psi$ creates a **destructive interference**, effectively "red-teaming" its own hallucinations in real-time.
 
-### **10.4. Mitigation of Red Team Attack Vectors**
+### **8.4 Mitigation of Red Team Attack Vectors**
 
 By implementing this Hybrid Architecture, we neutralize the primary criticisms of Geometric AI:
 
@@ -183,9 +160,8 @@ By implementing this Hybrid Architecture, we neutralize the primary criticisms o
 
 ---
 
-## **11. Conclusion**
+## **9. Conclusion**
 
 The history of AI has been a race toward "brute-force" statistics. Geo-Llama, augmented by a Hybrid Architecture, introduces a pivot toward **Human-Centric Geometry.** By embedding language in a $Cl_{4,1}$ conformal manifold while retaining the precision of Transformers, we provide the AI with a sense of "space," "object permanence," and "logical hierarchy." 
 
 ---
-
