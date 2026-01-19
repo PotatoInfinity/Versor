@@ -142,6 +142,15 @@ def conformal_projection(grid: torch.Tensor):
     out += (grid == 0).unsqueeze(-1) * n_inf
     return out
 
+def vector_where_max_norm(x):
+    # x: (B, S, D, 32)
+    norms = torch.norm(x, p=2, dim=-1) # (B, S, D)
+    idx = torch.argmax(norms, dim=1)   # (B, D)
+    
+    # Gather along sequence dimension (1)
+    idx_exp = idx.unsqueeze(1).unsqueeze(-1).expand(-1, 1, -1, 32)
+    return torch.gather(x, 1, idx_exp).squeeze(1)
+
 # =================================================================
 # 3. NEURAL NETWORK ARCHITECTURES
 # =================================================================
@@ -155,10 +164,20 @@ class GeometricLinear(nn.Module):
             self.weight.normal_(0, std)
 
     def forward(self, x):
-        gp = get_gp_map(x.device)
-        W_op = torch.einsum('oij,jlk->oilk', self.weight, gp)
-        if x.dim() == 3: out = torch.einsum('bil,oilk->bok', x, W_op)
-        else: out = torch.einsum('bsil,oilk->bsok', x, W_op)
+        gp = get_gp_map(x.device).view(32, 1024)
+        
+        # Optimize W_op construction: (O, I, 32) -> (O, I, 32, 32) via matmul
+        W_op = torch.matmul(self.weight.view(-1, 32), gp).view(self.weight.shape[0], self.weight.shape[1], 32, 32)
+        
+        # Prepare W_real for F.linear: (O*32, I*32)
+        # Permute (o, i, l, k) -> (o, k, i, l) then flatten
+        W_real = W_op.permute(0, 3, 1, 2).reshape(self.weight.shape[0] * 32, self.weight.shape[1] * 32)
+        
+        # Efficient application
+        x_flat = x.reshape(x.shape[:-2] + (-1,))
+        out_flat = F.linear(x_flat, W_real)
+        out = out_flat.view(x.shape[:-2] + (self.weight.shape[0], 32))
+        
         return manifold_normalization(out)
 
 class GeometricAttention(nn.Module):
@@ -184,7 +203,13 @@ class GeometricAttention(nn.Module):
         score = score / (self.d_head * 32)**0.5
         score = score * self.scale
         attn_weights = torch.softmax(score, dim=-1)
-        out = torch.einsum('bhsi,bhidl->bhsdl', attn_weights, v)
+        
+        # Optimize output projection: einsum -> matmul
+        # Optimize output projection: einsum -> matmul
+        v_flat = v.reshape(b, self.n_heads, s, -1) # (b, h, s, d_head*32)
+        out_flat = torch.matmul(attn_weights, v_flat) # (b, h, s, d_head*32)
+        out = out_flat.reshape(b, self.n_heads, s, self.d_head, 32)
+        
         return self.o_proj(out.transpose(1, 2).reshape(b, s, d, 32))
 
 class CGA_Transformer(nn.Module):
