@@ -337,14 +337,14 @@ def train_one_config(model, size, epochs=40, seed=42, model_type='cga'):
                     o = model(xb)
                 preds.extend(o.argmax(1).cpu().numpy()); trues.extend(yb.cpu().numpy())
         mcc = matthews_corrcoef(trues, preds)
-        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}")
+        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}", flush=True)
         
         if mcc > best_mcc:
             best_mcc = mcc
             best_model_state = copy.deepcopy(model.state_dict())
             
         if mcc > 0.999: 
-            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})")
+            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})", flush=True)
             break
         
     model.load_state_dict(best_model_state)
@@ -363,7 +363,7 @@ def save_json(data, filename):
     os.replace(filename + '.tmp', filename)
 
 def run_sweeps():
-    print(f"Starting DyckN Curriculum Sweeps on {GPU_NAME}")
+    print(f"Starting DyckN Curriculum Sweeps on {GPU_NAME}", flush=True)
     data_results, model_results = defaultdict(list), defaultdict(list)
     if os.path.exists(args.outfile):
         try:
@@ -373,16 +373,16 @@ def run_sweeps():
 
     # --- 1. SEQUENCE COMPLEXITY SWEEP (WITH CURRICULUM) ---
     SIZES, D_VEC_FIXED, N_REPEATS, EPOCHS = args.sizes, 8, args.repeats, args.epochs
-    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---")
+    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---", flush=True)
     
     for r in range(N_REPEATS):
-        print(f"\n--- Trial {r+1}/{N_REPEATS} ---")
+        print(f"\n--- Trial {r+1}/{N_REPEATS} ---", flush=True)
         prev_cga = None
         for size in SIZES:
             if str(size) in data_results and len(data_results[str(size)]) > r:
                 continue
             
-            print(f"  Length: {size}")
+            print(f"  Length: {size}", flush=True)
             cga_m = CGA_Transformer(vocab_size=5, d_vectors=D_VEC_FIXED, n_layers=4, seq_len=size)
             if prev_cga: cga_m = transfer_weights(prev_cga, cga_m)
             
@@ -398,15 +398,15 @@ def run_sweeps():
             s_mcc = train_one_config(std_m, size, epochs=EPOCHS, seed=100+r, model_type='std')
             
             data_results[str(size)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})")
+            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})", flush=True)
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     # --- 2. CAPACITY SWEEP ---
     FIXED_SIZE, D_VECS = 64, args.d_vecs
-    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}) ---")
+    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}) ---", flush=True)
     for dv in D_VECS:
         if str(dv) in model_results and len(model_results[str(dv)]) >= N_REPEATS: continue
-        print(f"  D_VEC: {dv}")
+        print(f"  D_VEC: {dv}", flush=True)
         for r in range(N_REPEATS):
             cga_m = CGA_Transformer(vocab_size=5, d_vectors=dv, n_layers=4, seq_len=FIXED_SIZE)
             cga_params = count_parameters(cga_m)
@@ -417,7 +417,7 @@ def run_sweeps():
             s_mcc = train_one_config(std_m, FIXED_SIZE, epochs=EPOCHS, seed=200+r, model_type='std')
             
             model_results[str(dv)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}")
+            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}", flush=True)
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     plot_results(data_results, model_results)
@@ -450,7 +450,7 @@ def plot_results(data_results, model_results):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout(); plt.savefig('dyck_sweep_maxpool_plots.png')
-    print("\n[INFO] Sweep visualizations saved to: dyck_sweep_maxpool_plots.png")
+    print("\n[INFO] Sweep visualizations saved to: dyck_sweep_maxpool_plots.png", flush=True)
 
 if __name__ == "__main__":
     run_sweeps()

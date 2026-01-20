@@ -376,7 +376,7 @@ def train_one_config(model, size, d_vec, epochs=40, seed=42, model_type='cga'):
                     else: o = model(xb)
                 preds.extend(o.argmax(1).cpu().numpy()); trues.extend(yb.cpu().numpy())
         mcc = matthews_corrcoef(trues, preds)
-        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}")
+        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}", flush=True)
         
         if mcc > best_mcc:
             best_mcc = mcc
@@ -384,7 +384,7 @@ def train_one_config(model, size, d_vec, epochs=40, seed=42, model_type='cga'):
         
             
         if mcc > 0.999: 
-            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})")
+            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})", flush=True)
             break
         
     model.load_state_dict(best_model_state)
@@ -403,7 +403,7 @@ def save_json(data, filename):
     os.replace(filename + '.tmp', filename)
 
 def run_sweeps():
-    print(f"Starting Curriculum Sweeps on {GPU_NAME}")
+    print(f"Starting Curriculum Sweeps on {GPU_NAME}", flush=True)
     data_results, model_results = defaultdict(list), defaultdict(list)
     if os.path.exists(args.outfile):
         try:
@@ -413,10 +413,10 @@ def run_sweeps():
 
     # --- 1. SEQUENCE COMPLEXITY SWEEP (WITH CURRICULUM) ---
     SIZES, D_VEC_FIXED, N_REPEATS, EPOCHS = args.sizes, 8, args.repeats, args.epochs
-    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---")
+    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---", flush=True)
     
     for r in range(N_REPEATS):
-        print(f"\n--- Trial {r+1}/{N_REPEATS} ---")
+        print(f"\n--- Trial {r+1}/{N_REPEATS} ---", flush=True)
         prev_cga, prev_std = None, None
         for size in SIZES:
             # Check if trial r is already recorded for this size
@@ -427,7 +427,7 @@ def run_sweeps():
                 continue
             
             seq_len = size * size
-            print(f"  Grid: {size}x{size}")
+            print(f"  Grid: {size}x{size}", flush=True)
             
             cga_m = CGA_Transformer(D_VEC_FIXED, 4, seq_len)
             if prev_cga: cga_m = transfer_weights(prev_cga, cga_m)
@@ -443,16 +443,16 @@ def run_sweeps():
             s_mcc = train_one_config(std_m, size, D_VEC_FIXED, epochs=EPOCHS, seed=100+r, model_type='std')
             
             data_results[str(size)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})")
+            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})", flush=True)
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     # --- 2. CAPACITY SWEEP (Constant Complexity, No Curriculum needed) ---
     FIXED_SIZE, D_VECS = 16, args.d_vecs
-    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}x{FIXED_SIZE}) ---")
+    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}x{FIXED_SIZE}) ---", flush=True)
     for dv in D_VECS:
         if str(dv) in model_results and len(model_results[str(dv)]) >= N_REPEATS: continue
         seq_len = FIXED_SIZE * FIXED_SIZE
-        print(f"  D_VEC: {dv}")
+        print(f"  D_VEC: {dv}", flush=True)
         for r in range(N_REPEATS):
             cga_m = CGA_Transformer(dv, 4, seq_len)
             cga_params = count_parameters(cga_m)
@@ -461,7 +461,7 @@ def run_sweeps():
             std_m = Standard_Transformer(dv*32, std_d, 4, 4, seq_len)
             s_mcc = train_one_config(std_m, FIXED_SIZE, dv, epochs=EPOCHS, seed=200+r, model_type='std')
             model_results[str(dv)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}")
+            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}", flush=True)
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     plot_results(data_results, model_results)
@@ -493,7 +493,7 @@ def plot_results(data_results, model_results):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout(); plt.savefig('curriculum_sweep_maxpool_plots.png')
-    print("\n[INFO] Curriculum visualizations saved to: curriculum_sweep_maxpool_plots.png")
+    print("\n[INFO] Curriculum visualizations saved to: curriculum_sweep_maxpool_plots.png", flush=True)
 
 if __name__ == "__main__":
     run_sweeps()
