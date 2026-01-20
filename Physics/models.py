@@ -30,7 +30,7 @@ class StandardTransformer(nn.Module):
     def forward(self, x):
         # x: (B, S, N, 6)
         B, S, N, D = x.shape
-        x_flat = x.view(B, S, -1) # (B, S, N*6)
+        x_flat = x.reshape(B, S, -1) # (B, S, N*6)
         
         emb = self.embedding(x_flat) + self.pos_encoder[:, :S, :]
         
@@ -41,7 +41,7 @@ class StandardTransformer(nn.Module):
         out = self.transformer(emb, mask=mask)
         pred = self.head(out)
         
-        return pred.view(B, S, N, D)
+        return pred.reshape(B, S, N, D)
 
 class GeometricRotorRNN(nn.Module):
     """
@@ -141,4 +141,126 @@ class GeometricRotorRNN(nn.Module):
             
             outputs.append(x_t + pred_delta)
             
-        return torch.stack(outputs, dim=1).view(B, S, N, D)
+        return torch.stack(outputs, dim=1).reshape(B, S, N, D)
+class GraphNetworkSimulator(nn.Module):
+    """
+    The Relational King.
+    Treats particles as nodes, interactions as edges.
+    """
+    def __init__(self, n_particles=5, input_dim=6, hidden_dim=64):
+        super().__init__()
+        self.n_particles = n_particles
+        # Node Encoder: Encodes (state) -> hidden
+        self.node_enc = nn.Linear(input_dim, hidden_dim)
+        
+        # Edge Encoder: Encodes (rel_pos, rel_vel) -> hidden
+        self.edge_enc = nn.Linear(input_dim, hidden_dim)
+        
+        # Message Passing (Interaction Network)
+        self.edge_mlp = nn.Sequential(
+            nn.Linear(hidden_dim * 3, hidden_dim), # (Node_i, Node_j, Edge_ij)
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
+        
+        self.node_mlp = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim), # (Node_i, Agg_Message)
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim) # Predict acceleration/delta
+        )
+        
+    def forward(self, x):
+        # x: (B, S, N, 6)
+        B, S, N, D = x.shape
+        x_flat = x.reshape(B*S, N, D)
+        
+        # Node features
+        nodes = self.node_enc(x_flat) # (BS, N, H)
+        
+        # Create full graph edges (N*N)
+        # We can verify scaling later, for N=5 full graph is fine.
+        # Edge features: x_j - x_i
+        x_i = x_flat.unsqueeze(2).expand(-1, -1, N, -1)
+        x_j = x_flat.unsqueeze(1).expand(-1, N, -1, -1)
+        rel_x = x_j - x_i # (BS, N, N, 6)
+        
+        edges = self.edge_enc(rel_x) # (BS, N, N, H)
+        
+        # Message Passing
+        # Concat (Node_i, Node_j, Edge_ij)
+        n_i = nodes.unsqueeze(2).expand(-1, -1, N, -1) # (BS, N, N, H)
+        n_j = nodes.unsqueeze(1).expand(-1, N, -1, -1) # (BS, N, N, H)
+        
+        edge_input = torch.cat([n_i, n_j, edges], dim=-1)
+        messages = self.edge_mlp(edge_input) # (BS, N, N, H)
+        
+        # Aggregate (Sum over j)
+        aggr_messages = messages.sum(dim=2) # (BS, N, H)
+        
+        # Update Nodes
+        node_input = torch.cat([nodes, aggr_messages], dim=-1)
+        delta = self.node_mlp(node_input) # (BS, N, 6)
+        
+        # Residual update
+        next_state = x_flat + delta
+        
+        return next_state.reshape(B, S, N, D)
+
+class HamiltonianNN(nn.Module):
+    """
+    The Energy King.
+    Learns scalar Energy H(q, p).
+    Equations of motion: dq/dt = dH/dp, dp/dt = -dH/dq.
+    """
+    def __init__(self, n_particles=5, input_dim=6, hidden_dim=128):
+        super().__init__()
+        self.n_particles = n_particles
+        # Input is entire system state (N * 6)
+        self.state_dim = n_particles * 6
+        
+        self.h_net = nn.Sequential(
+            nn.Linear(self.state_dim, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, 1) # Scalar Energy
+        )
+        
+    def forward(self, x, dt=0.01):
+        # x: (B, S, N, 6)
+        # HNN typically works on instantaneous state. 
+        # We process each time step independently (or vectorised).
+        B, S, N, D = x.shape
+        x_flat = x.reshape(B * S, N * D)
+        
+        # Enforce gradient enabling even if in no_grad mode (for rollout)
+        with torch.enable_grad():
+            # Enable grad for input to compute dH/dx
+            x_flat = x_flat.detach().requires_grad_(True)
+            
+            # Predict Energy
+            energy = self.h_net(x_flat)
+            
+            # Compute Gradients
+            grads = torch.autograd.grad(energy, x_flat, grad_outputs=torch.ones_like(energy), create_graph=True)[0]
+            # grads: (BS, N*D) -> [dq1, dp1, dq2, dp2 ...]
+        
+        # Split into q (pos) and p (vel/momentum)
+        # Assuming input is [px, py, pz, vx, vy, vz] per particle
+        grads = grads.reshape(B*S, N, 6)
+        dH_dq = grads[..., :3]
+        dH_dp = grads[..., 3:]
+        
+        # Symplectic Gradients
+        # dot_q = dH/dp
+        # dot_p = -dH/dq
+        
+        dot_q = dH_dp
+        dot_p = -dH_dq
+        
+        time_derivs = torch.cat([dot_q, dot_p], dim=-1) # (BS, N, 6)
+        
+        # Euler Integration Step (Predict Next)
+        next_state = x_flat.reshape(B*S, N, 6) + time_derivs * dt
+        
+        return next_state.reshape(B, S, N, D)

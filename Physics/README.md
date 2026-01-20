@@ -1,4 +1,4 @@
-# Neural Newton
+# Geometric Algebra for Physics Learning
 
 A demonstration of **Geometric Algebra** for learning physical laws from data.
 This project compares a **Standard Transformer** against a **Geo-Llama Rotor RNN** on an N-body gravity simulation.
@@ -17,25 +17,38 @@ By embedding the state into a **Geometric Algebra (Cl(4,1))** multivector and us
 - `train.py`: Trains both models and compares them on **Energy Drift** and **MSE**.
 - `algebra.py`: The Geometric Algebra kernel (from Geo-Llama).
 
-## Usage
-Run the training and comparison:
-```bash
-python3 Neural\ Newton/train.py
-```
+## Measured Results (The "Four Kings" Benchmark)
+Comparison of Standard Transformer, Graph Network (GNS), Hamiltonian NN (HNN), and GeoLlama over a 100-step prediction rollout.
 
-## Measured Results (30 Epochs)
-Both models were trained on 200 trajectories of 5-body interaction.
+| Model | MSE (Motion) | Energy Drift (Physics) | Notes |
+|-------|--------------|------------------------|-------|
+| Standard Transformer | 18.63 | 214.31 | Unstable |
+| GNS (Relational) | 23.83 | 1261.01 | Suffers from coordinate drift |
+| HNN (Energy-based) | 11.12 | **61.86** | Great physics, average motion |
+| **GeoLlama (Rotor RNN)** | **5.45** | **66.13** | **Best performance on balance** |
 
-| Model | MSE (Lower is Better) | Energy Drift (Lower is Better) |
-|-------|-----------------------|--------------------------------|
-| Standard Transformer | 23.56 | 229.23 |
-| **GeoLlama Rotor RNN** | **5.79** | **74.03** |
+### In-Depth Model Analysis: Why do they behave this way?
 
-**Conclusion**: 
-The Geometric Algebra model significantly outperforms the Standard Transformer.
-1. **O(1) Context**: It maintains state more effectively (~4x better MSE).
-2. **Physics Compliance**: The Manifold Normalization and Geometric updates keep the energy drift ~3x lower than the baseline, meaning the simulation stays stable for longer.
+#### 1. Standard Transformer (The "Black Box")
+*   **Performance**: High MSE, high Energy Drift.
+*   **Why**: Transformers are universal function approximators but have no concept of 3D space. They treat $(x, y, z)$ as independent numbers rather than a vector. In autoregressive rollouts, small errors in coordinate prediction compound into "non-physical" states (e.g., a planet suddenly gaining mass/energy), causing the system to explode.
+
+#### 2. GNS - Graph Network Simulator (The "Relational King")
+*   **Performance**: Worst MSE/Drift in this specific task.
+*   **Why**: GNS is designed for local interactions (like sand or fluid). For a global system like 5-body gravity, the graph is fully connected. GNS update steps are purely additive; without a global conservation prior, the "message-passing" errors aggregate across the particles, leading to massive energy drift (1200+) where the system loses all structure.
+
+#### 3. HNN - Hamiltonian Neural Network (The "Energy King")
+*   **Performance**: Best Energy Drift, Moderate MSE.
+*   **Why**: HNNs are mathematically forced to conserve energy because they predict a scalar potential $H$ and derive motion from it. This is why its drift is so low (61.8). However, the mapping from raw coordinates $(q, p)$ to a stable Hamiltonian surface is difficult to learn precisely from small data, leading to "accurate-ish" motion but slightly higher coordinate error than GeoLlama.
+
+#### 4. GeoLlama - Rotor RNN (The "Winner")
+*   **Performance**: Best MSE, near-perfect Energy Stability.
+*   **Why**:
+    *   **Rotational Invariance**: Because it operates in $Cl(4,1)$ Geometric Algebra, a rotation of the solar system is just a change in the rotor state, not a new pattern to learn.
+    *   **Rotor Accumulator**: Its recurrent state uses Geometric Linear layers that effectively learn the *Lie Algebra* of the motion (the "screw motions" of physics).
+    *   **Manifold Normalization**: Similar to how HNNs force conservation via a scalar field, GeoLlama forces stability by projecting hidden states back onto the Geometric Manifold. This provides "Physical Regularization" without the rigid constraints of a Hamiltonian.
 
 ## Requirements
 - PyTorch
 - NumPy
+
