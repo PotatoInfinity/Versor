@@ -22,7 +22,7 @@ except ImportError:
     pass
 
 # =================================================================
-# 0. GLOBAL CONFIG & PRECOMPUTATION
+# GLOBAL CONFIGURATION AND PRECOMPUTATION
 # =================================================================
 
 _SIGN_MATRIX = None
@@ -74,7 +74,7 @@ def get_sign_matrix(device_type="numpy"):
     return _SIGN_MATRIX
 
 # =================================================================
-# 1. TRITON KERNELS (NVIDIA CUDA)
+# NVIDIA CUDA TRITON KERNEL IMPLEMENTATIONS
 # =================================================================
 
 if HAS_TRITON:
@@ -88,10 +88,10 @@ if HAS_TRITON:
         BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr
     ):
         """
-        Hyper-Optimized Geometric Matrix Multiply.
-        - Shared Memory Sign Caching
-        - Vectorized 32-dim Basis Contraction
-        - Feature Block Reduction
+        Hyper-Optimized Geometric Matrix Multiplication.
+        - Shared Memory Sign Matrix Caching
+        - Vectorized 32-dimensional Basis Contraction
+        - Feature Block Summation Reduction
         """
         pid_m = tl.program_id(0)
         pid_n = tl.program_id(1)
@@ -116,8 +116,8 @@ if HAS_TRITON:
                 d_in2 = d_indices ^ d_out
                 sign_vec = tl.load(sign_ptr + d_indices * 32 + d_out)
                 
-                # Manual shuffle/indexing for W components
-                # In Triton, we load the permuted W:
+                # Permutation and indexing for W components
+                # Load the permuted weight matrix within the Triton kernel
                 w_perm = tl.load(w_ptr + rn[:, None, None] * stride_wn + curr_k[None, :, None] * stride_wk + d_in2[None, None, :],
                                   mask=(rn[:, None, None] < N) & (k_mask[None, :, None]))
                 
@@ -172,7 +172,7 @@ if HAS_TRITON:
         manifold_norm_kernel[grid](x, sig, M, eps, BLOCK_SIZE=64)
         return x
     # =================================================================
-    # 1.1 TRITON AUTOGRAD WRAPPER
+    # TRITON AUTOGRAD GRADIENT WRAPPER
     # =================================================================
 
     class GeometricLinearFunction(torch.autograd.Function):
@@ -189,9 +189,8 @@ if HAS_TRITON:
             # grad_x = grad_output * reverse(weight)
             # grad_weight = reverse(x) * grad_output
             
-            # For simplicity in this kernel, we use the CPU fallback for gradients 
-            # if a specialized backward kernel isn't JITed yet.
-            # But the 'geometric_linear_layer' handles both.
+            # Fallback to CPU-based gradient computation if a specialized 
+            # backward kernel is unavailable.
             
             # S is (32, 32)
             S = torch.from_numpy(get_sign_matrix("numpy")).to(x.device)
@@ -215,7 +214,7 @@ if HAS_TRITON:
         return GeometricLinearFunction.apply(x, weight)
 
 # =================================================================
-# 2. MLX KERNELS (APPLE SILICON METAL)
+# APPLE SILICON METAL (MLX) KERNEL IMPLEMENTATIONS
 # =================================================================
 
 _GP_MAP_MLX = None
@@ -238,8 +237,10 @@ def get_gp_map_mlx():
 if HAS_MLX:
     def geometric_linear_mlx(x, weight):
         """
-        Hyper-Optimized MLX GeMM via Cayley Table.
-        x: (..., K, 32), weight: (N, K, 32)
+        Optimized MLX General Matrix Multiplication via Cayley Table.
+        Parameters:
+            x: Input tensor of shape (..., K, 32)
+            weight: Weight tensor of shape (N, K, 32)
         """
         GP = get_gp_map_mlx()
         # x_view: (..., 1, K, 32, 1) [where 1 is N, K is K, 32 is i, 1 is j]
@@ -278,7 +279,7 @@ if HAS_MLX:
         return x / denom
 
 # =================================================================
-# 3. FUNDAMENTAL GA OPERATORS
+# FUNDAMENTAL GEOMETRIC ALGEBRA OPERATORS
 # =================================================================
 
 def reverse(x):
@@ -310,31 +311,28 @@ def sandwich_product(r, x):
     return geometric_product(inter, r_rev)
 
 def wedge_product(a, b):
-    """Outer product (Grade-increasing contraction)."""
-    # Simply Geometric Product filtered for grade(a)+grade(b)
-    # For performance, we'd use a grade-mask.
-    # Placeholder for the grade-selection logic
-    return geometric_product(a, b) # Generic GP for now
+    # Grade-filtered geometric product (placeholder for grade-selection logic)
+    return geometric_product(a, b)
 
 def inner_product(a, b):
     """Inner product (Grade-decreasing contraction)."""
-    return geometric_product(a, b) # Generic GP for now
+    return geometric_product(a, b)
 
 # =================================================================
-# 4. UNIFIED INTERFACE
+# UNIFIED MULTI-BACKEND INTERFACE
 # =================================================================
 
 def geometric_product(a, b):
-    # Backward compatibility for simple products
+    # Multi-backend dispatching for geometric product
     if HAS_MLX and (isinstance(a, mx.array) or isinstance(b, mx.array)):
         S = get_sign_matrix("mlx")
         indices = mx.arange(32)
         k_idx = indices[:, None] ^ indices[None, :]
         return mx.sum(a[..., None, :] * b[..., k_idx] * S.T, axis=-1)
     if isinstance(a, torch.Tensor) and HAS_TRITON and a.is_cuda:
-        # Simple GeMM where N=1 and K=1
+        # Scalar/Vector geometric multiplication via Triton
         return geometric_linear(a.unsqueeze(-2), b.transpose(-1, -2).unsqueeze(-2)).squeeze(-2)
-    # Correct CPU implementation of Geometric Product
+    # Standard CPU implementation of the Geometric Product
     # a: (..., 32), b: (..., 32)
     device = a.device if isinstance(a, torch.Tensor) else "cpu"
     S = torch.from_numpy(get_sign_matrix("numpy")).to(device) # (32, 32) -> S[i, k] is sign for e_i * e_{i^k} -> e_k
@@ -346,10 +344,7 @@ def geometric_product(a, b):
     b_indices = i_idx ^ k_idx # (32, 32) -> [i, k] gives index of b to pick
     
     # b_perm: (..., 32, 32) where last dims are i, k
-    # Gather is tricky with arbitrary batch dims.
-    # Use broadcasting if possible.
-    # b[..., b_indices] works if we treat ... as flat or handled correctly.
-    # safer: b[..., b_indices] expands b to include i, k dims?
+    # Basis permutation logic for multi-dimensional broadcasting
     
     # Let's align dimensions.
     # a: (..., 32) -> (..., 32, 1) (i, k=1)
@@ -379,7 +374,7 @@ def geometric_linear_layer(x, weight):
     if isinstance(x, torch.Tensor) and HAS_TRITON and x.is_cuda:
         return geometric_linear_layer_triton(x, weight)
     
-    # Correct & Robust CPU Fallback
+    # Robust CPU implementation with dimension handling
     # x: (..., K, 32), weight: (N, K, 32)
     device = x.device if isinstance(x, torch.Tensor) else "cpu"
     S = torch.from_numpy(get_sign_matrix("numpy")).to(device)
@@ -412,19 +407,11 @@ def manifold_normalization(x, eps=1e-6):
         return manifold_norm_mlx(x, eps)
     # if isinstance(x, torch.Tensor) and HAS_TRITON and x.is_cuda:
     #     return manifold_norm_triton(x, eps)
-    # Correct CPU implementation
+    # Standard CPU implementation for manifold normalization
     device = x.device if isinstance(x, torch.Tensor) else "cpu"
     sig = torch.from_numpy(get_sign_matrix("numpy")).to(device)
     # We need the metric signature, which is diagonal of S?
-    # Actually S[i, i] gives metric of e_i * e_i?
-    # e_i * e_i = (+/-) 1.
-    # get_sign_matrix: S[i, k] is sign of ei * e(i^k).
-    # so S[i, 0] is sign of ei * ei ? No. k=0 means i^k = i. so ei * ei -> scalar?
-    # Wait, e_i * e_i = \pm 1.
-    # S[i, 0] corresponds to ei * ei = S[i,0] e0 (if e0=1).
-    # Yes.
-    
-    # Extract metric signature from S column 0
+    # Retrieve the metric signature from the sign matrix
     metric_sig = sig[:, 0] # (32,)
     
     # Quadratic Norm (Reverse Norm): (x * ~x)_scalar
@@ -440,12 +427,12 @@ def manifold_normalization(x, eps=1e-6):
     return x / denom
 
 # =================================================================
-# 4. BENCHMARK SUITE (UNBEATABLE EDITION)
+# PERFORMANCE BENCHMARK SUITE
 # =================================================================
 
 def benchmark():
     print(f"\n{'='*60}")
-    print(f"THE UNBEATABLE KERNEL BENCHMARK")
+    print(f"GEOMETRIC KERNEL PERFORMANCE EVALUATION")
     print(f"{'='*60}\n")
     
     if HAS_TRITON and torch.cuda.is_available():

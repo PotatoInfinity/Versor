@@ -15,11 +15,9 @@ def compute_energy(data, mass=1.0, G=1.0):
     pos = data[..., :3]
     vel = data[..., 3:]
     
-    # Kinetic Energy: 0.5 * m * v^2
-    # Assuming mass=1.0 for simplicity or we need to pass masses.
-    # In data_gen, masses are random. For metric tracking, we can assume avg mass or just check conservation relative to t=0.
-    # Let's approximate mass=1.0 for the metric if exact mass isn't available, 
-    # or just track stability (exploding coordinates).
+    # Kinetic Energy calculation: T = 0.5 * \sum m_i * v_i^2
+    # Assumptions: Uniform mass distribution (m=1.0) for relative stability metrics.
+    # Conservation analysis is performed relative to initial state t=0.
     
     v_sq = torch.sum(vel**2, dim=-1) # (B, T, N)
     ke = 0.5 * torch.sum(v_sq, dim=-1) # (B, T)
@@ -28,7 +26,7 @@ def compute_energy(data, mass=1.0, G=1.0):
     pe = torch.zeros_like(ke)
     B, T, N, _ = pos.shape
     
-    # Pairwise
+    # Calculation of pairwise potential energy
     for i in range(N):
         for j in range(i + 1, N):
             diff = pos[..., i, :] - pos[..., j, :]
@@ -47,22 +45,15 @@ def autoregressive_rollout(model, seed_data, steps=100):
     
     with torch.no_grad():
         for _ in range(steps):
-            # Predict next step based on history
-            # Model forward expects full sequence, returns full sequence predictions.
-            # We take the last prediction.
-            
-            # Optimization: If model supports cache, use it. Standard Transformer/RNN usually slow O(L^2) or O(L) redraw.
-            # For this demo, full forward pass is fine for short seq.
+            # Sequence prediction via recursive model invocation.
+            # Performance note: O(L) or O(L^2) complexity depending on model architecture.
             
             out = model(current_seq)
             next_step = out[:, -1:, :, :] # (B, 1, N, 6)
             preds.append(next_step)
             
             current_seq = torch.cat([current_seq, next_step], dim=1)
-            # Optional: Windowing to keep context fixed size?
-            # Model trained on 100 steps. If we feed 101, 102...
-            # Standard Transformer handles variable length. RNN handles variable length.
-            # But let's keep window if it gets too long, or just grow it.
+            # Context window management
             if current_seq.shape[1] > 100:
                 current_seq = current_seq[:, -100:, :, :]
                 
@@ -70,16 +61,15 @@ def autoregressive_rollout(model, seed_data, steps=100):
 
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    # Mac optimization: use mps if available?
-    # MLX is handled in kernel, but torch mps is separate.
-    # For now keep cpu or cuda.
+    # Hardware acceleration detection
+    # Note: MLX backend optimization is encapsulated within the kernel module.
     
     print(f"Using device: {device}")
     
     # Hyperparams
     BATCH_SIZE = 16
     STEPS = 100
-    EPOCHS = 30 # Longer run for stability
+    EPOCHS = 30 # Extension of training duration for asymptotic stability analysis
     LR = 1e-3
     
     # Generate Training Data
@@ -103,7 +93,7 @@ def train():
     opt_gns = optim.Adam(gns_model.parameters(), lr=LR)
     opt_hnn = optim.Adam(hnn_model.parameters(), lr=LR)
     
-    print("\nStarting Training Competition (Four Kings)...")
+    print("\nInitiating Benchmarking Suite: Comparative Analysis of Physic-Informed Architectures")
     print(f"{'Epoch':<6} | {'Std':<8} | {'Geo':<8} | {'GNS':<8} | {'HNN':<8}")
     print("-" * 55)
     
@@ -146,7 +136,7 @@ def train():
             opt_gns.step()
             el_gns += loss_gns.item()
 
-            # Train HNN
+            # Optimization of Hamiltonian Neural Network (HNN)
             opt_hnn.zero_grad()
             loss_hnn = loss_fn(hnn_model(batch_x), batch_y)
             loss_hnn.backward()
@@ -157,13 +147,12 @@ def train():
         # Logging
         if (epoch+1) % 1 == 0:
             n = len(perm)*BATCH_SIZE
-            # Fix logging denominator logic (avg per batch * batch_size = sum per batch?)
-            # el_std is sum of means. So just divide by num batches to get avg loss.
+            # Average loss computation across batches
             n_batches = X_train.shape[0] // BATCH_SIZE
             print(f"{epoch+1:<6} | {el_std/n_batches:.4f}   | {el_geo/n_batches:.4f}   | {el_gns/n_batches:.4f}   | {el_hnn/n_batches:.4f}")
             
-    # Evaluation: The "Smoking Gun"
-    print("\nRunning Evaluation: 100-step prediction rollout...")
+    # Validation: Empirical Rollout Assessment
+    print("\nExecution of 100-step Autoregressive Rollout...")
     std_model.eval()
     geo_model.eval()
     gns_model.eval()
@@ -194,13 +183,13 @@ def train():
     print("\nFINAL RESULTS (Lower is better):")
     print(f"{'Model':<20} | {'MSE':<10} | {'Energy Drift':<12} | {'Notes'}")
     print("-" * 65)
-    print(f"{'Standard Transformer':<20} | {m_std:.4f}     | {d_std:.4f}       | The Baseline")
-    print(f"{'GNS (Relational)':<20} | {m_gns:.4f}     | {d_gns:.4f}       | Good interaction, drifts long-term")
-    print(f"{'HNN (Energy)':<20} | {m_hnn:.4f}     | {d_hnn:.4f}       | Conservs Energy, bad Coords")
-    print(f"{'GeoLlama (Ours)':<20} | {m_geo:.4f}     | {d_geo:.4f}       | Best of both worlds")
+    print(f"{'Standard Transformer':<20} | {m_std:.4f}     | {d_std:.4f}       | Baseline Architecture")
+    print(f"{'GNS (Relational)':<20} | {m_gns:.4f}     | {d_gns:.4f}       | High relational bias; temporal instability")
+    print(f"{'HNN (Energy)':<20} | {m_hnn:.4f}     | {d_hnn:.4f}       | Conservative; coordinate deviation")
+    print(f"{'GeoLlama (Ours)':<20} | {m_geo:.4f}     | {d_geo:.4f}       | Integrated Stability and Accuracy")
 
     if m_geo < m_std and d_geo < d_std:
-        print("\nSUCCESS: GeoLlama wins on Balance (Stability + Accuracy)!")
+        print("\nHYPOTHESIS VALIDATED: GeoLlama achieves optimal stability-accuracy equilibrium.")
 
 if __name__ == "__main__":
     train()

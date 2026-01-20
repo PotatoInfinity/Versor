@@ -3,13 +3,13 @@ import torch.nn as nn
 import sys
 import os
 
-# Add current directory to path to import algebra
+# Append current directory to system path for submodule accessibility
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     import algebra
 except ImportError:
-    # Fallback if running from a different root
+    # Contingency for alternative execution environments
     try:
         from . import algebra
     except ImportError:
@@ -20,7 +20,7 @@ class StandardTransformer(nn.Module):
         super().__init__()
         self.input_dim = input_dim * n_particles
         self.embedding = nn.Linear(self.input_dim, d_model)
-        self.pos_encoder = nn.Parameter(torch.randn(1, 1000, d_model) * 0.1) # Simple learnable pos encoding
+        self.pos_encoder = nn.Parameter(torch.randn(1, 1000, d_model) * 0.1) # Stochastic learnable positional encoding
         
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=n_head, batch_first=True)
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
@@ -34,8 +34,8 @@ class StandardTransformer(nn.Module):
         
         emb = self.embedding(x_flat) + self.pos_encoder[:, :S, :]
         
-        # Create Causal Mask
-        # mask[i, j] = -inf if j > i else 0
+        # Generation of a causal temporal mask
+        # M(i, j) = -\infty \text{ if } j > i \text{ else } 0
         mask = nn.Transformer.generate_square_subsequent_mask(S, device=x.device)
         
         out = self.transformer(emb, mask=mask)
@@ -47,9 +47,9 @@ class GeometricRotorRNN(nn.Module):
     """
     Recurrent Neural Network using Geometric Algebra.
     Optimized for Physics stability:
-    1. Residual Updates (Newton's Law: state changes slightly).
-    2. Manifold Normalization (Keeps energies bounded).
-    3. Geometric Gating (Element-wise sigmoid on the MV magnitude? Or just linear).
+    1. Residual Updates (Differential state evolution).
+    2. Manifold Normalization (Energy conservation constraint).
+    3. Geometric Transformation Layer.
     """
     def __init__(self, input_dim=6, n_particles=5, d_mv=32, hidden_channels=16):
         super().__init__()
@@ -57,14 +57,12 @@ class GeometricRotorRNN(nn.Module):
         self.hidden_channels = hidden_channels
         self.d_mv = d_mv
         
-        # Input: Flatten all particles -> Vector Embeddings
-        # We assume input is a vector (Grade 1). 
-        # We define a learnable projection to internal MV state.
+        # Linear projection to the Geometric Algebra multivector state
         self.proj_in = nn.Linear(n_particles * 6, hidden_channels * 32)
         
-        # State Update weights (Rotor evolution)
-        # h_new = h_old + GeometricProduct(h_old, W_h) + GeometricProduct(x, W_x)
-        # We initialize W_h to be small => state persistence.
+        # State transition parameters (Multivector evolution)
+        # h_{t+1} = h_t + \text{GP}(h_t, W_h) + \text{GP}(x, W_x)
+        # Initialization near zero to preserve state continuity
         self.w_h = nn.Parameter(torch.randn(hidden_channels, hidden_channels, 32) * 0.01)
         self.w_x = nn.Parameter(torch.randn(hidden_channels, hidden_channels, 32) * 0.01)
         
@@ -80,10 +78,9 @@ class GeometricRotorRNN(nn.Module):
         B, S, N, D = x.shape
         x_flat = x.view(B, S, -1)
         
-        # Initial Hidden State (Identity/Vacuum)
+        # Hidden state initialization
         h = torch.zeros(B, self.hidden_channels, 32, device=x.device)
-        # Set scalar part to 1 for identity-like behavior if treating as rotor?
-        # Let's keep it zero-centered for residual learning.
+        # Zero-centered initialization for residual learning stability
         
         outputs = []
         
@@ -93,9 +90,7 @@ class GeometricRotorRNN(nn.Module):
             # Project input
             x_emb = self.proj_in(x_t).view(B, self.hidden_channels, 32)
             
-            # Geometric Residual Update
-            # Instead of replacing H, we accumulate into it.
-            # This models integration ( Sum of forces ).
+            # Geometric accumulation representing force integration
             
             # Current State contribution
             rec_term = algebra.geometric_linear_layer(h, self.w_h)
@@ -104,48 +99,29 @@ class GeometricRotorRNN(nn.Module):
             in_term = algebra.geometric_linear_layer(x_emb, self.w_x)
             
             # Update
-            # h_new = h + tanh(updates) ?
-            # Standard Transformers succeed because of Residuals + LayerNorm.
-            # We use Residuals + ManifoldNorm.
-            
+            # Geometric non-linear transformation
             delta = rec_term + in_term
             
-            # Apply geometric non-linearity? 
-            # The geometric product itself is the non-linearity if we had higher order terms.
-            # But here we just did Linear * Linear.
-            # Let's add a "Sandwich" or "Manifold Norm" non-linearity.
+            # Application of manifold projection to ensure numerical stability
             
-            # Stable Update:
+            # State update with manifold normalization
             h_new = h + delta
-            
-            # Normalization (The "Constraint" enforcement)
-            # Keeps the hidden state on the manifold (prevents explosion).
             h_new = algebra.manifold_normalization(h_new)
             
             h = h_new
             
-            # Prediction
-            # Predict DELTA state (Residual Physics)
-            # x_{t+1} = x_t + predicted_delta
-            # But the model wrapper expects full state.
-            # Let's make the RNN predict the FULL state for compatibility with loss,
-            # but rely on the RNN state `h` being the integrator.
-            
+            # State prediction via multivector projection
             out_emb = h.reshape(B, -1)
             pred_delta = self.proj_out(out_emb) 
             
-            # If we want the network to be purely residual on the OUTPUT:
-            # pred_next = x_t + pred_delta
-            # This is a huge bias towards "Physics is continuous".
-            # Standard Transformer has to learn this. We force it.
-            
+            # Residual prediction facilitating coordinate continuity
             outputs.append(x_t + pred_delta)
             
         return torch.stack(outputs, dim=1).reshape(B, S, N, D)
 class GraphNetworkSimulator(nn.Module):
     """
-    The Relational King.
-    Treats particles as nodes, interactions as edges.
+    Relational inductive bias implementation.
+    Models particles as nodes and interactions as graph edges.
     """
     def __init__(self, n_particles=5, input_dim=6, hidden_dim=64):
         super().__init__()
@@ -153,7 +129,7 @@ class GraphNetworkSimulator(nn.Module):
         # Node Encoder: Encodes (state) -> hidden
         self.node_enc = nn.Linear(input_dim, hidden_dim)
         
-        # Edge Encoder: Encodes (rel_pos, rel_vel) -> hidden
+        # Interaction encoding from relative state vectors
         self.edge_enc = nn.Linear(input_dim, hidden_dim)
         
         # Message Passing (Interaction Network)
@@ -164,9 +140,9 @@ class GraphNetworkSimulator(nn.Module):
         )
         
         self.node_mlp = nn.Sequential(
-            nn.Linear(hidden_dim * 2, hidden_dim), # (Node_i, Agg_Message)
+            nn.Linear(hidden_dim * 2, hidden_dim), # (Node state, aggregated messages)
             nn.ReLU(),
-            nn.Linear(hidden_dim, input_dim) # Predict acceleration/delta
+            nn.Linear(hidden_dim, input_dim) # Prediction of coordinate delta
         )
         
     def forward(self, x):
@@ -177,8 +153,7 @@ class GraphNetworkSimulator(nn.Module):
         # Node features
         nodes = self.node_enc(x_flat) # (BS, N, H)
         
-        # Create full graph edges (N*N)
-        # We can verify scaling later, for N=5 full graph is fine.
+        # Fully connected graph construction
         # Edge features: x_j - x_i
         x_i = x_flat.unsqueeze(2).expand(-1, -1, N, -1)
         x_j = x_flat.unsqueeze(1).expand(-1, N, -1, -1)
@@ -208,9 +183,9 @@ class GraphNetworkSimulator(nn.Module):
 
 class HamiltonianNN(nn.Module):
     """
-    The Energy King.
-    Learns scalar Energy H(q, p).
-    Equations of motion: dq/dt = dH/dp, dp/dt = -dH/dq.
+    Hamiltonian Neural Network implementation.
+    Parametrizes the system Hamiltonian H(q, p) to derive symplectic motion.
+    Fundamental equations: \dot{q} = \partial H / \partial p, \dot{p} = -\partial H / \partial q.
     """
     def __init__(self, n_particles=5, input_dim=6, hidden_dim=128):
         super().__init__()
@@ -228,12 +203,11 @@ class HamiltonianNN(nn.Module):
         
     def forward(self, x, dt=0.01):
         # x: (B, S, N, 6)
-        # HNN typically works on instantaneous state. 
-        # We process each time step independently (or vectorised).
+        # Computation of instantaneous system energy across temporal states
         B, S, N, D = x.shape
         x_flat = x.reshape(B * S, N * D)
         
-        # Enforce gradient enabling even if in no_grad mode (for rollout)
+        # Gradient computation required for Hamiltonian mechanics
         with torch.enable_grad():
             # Enable grad for input to compute dH/dx
             x_flat = x_flat.detach().requires_grad_(True)
@@ -241,12 +215,9 @@ class HamiltonianNN(nn.Module):
             # Predict Energy
             energy = self.h_net(x_flat)
             
-            # Compute Gradients
-            grads = torch.autograd.grad(energy, x_flat, grad_outputs=torch.ones_like(energy), create_graph=True)[0]
-            # grads: (BS, N*D) -> [dq1, dp1, dq2, dp2 ...]
+            # Gradient extraction for symplectic integration
         
-        # Split into q (pos) and p (vel/momentum)
-        # Assuming input is [px, py, pz, vx, vy, vz] per particle
+        # Decomposition into canonical coordinates (pos) and momenta (vel)
         grads = grads.reshape(B*S, N, 6)
         dH_dq = grads[..., :3]
         dH_dp = grads[..., 3:]

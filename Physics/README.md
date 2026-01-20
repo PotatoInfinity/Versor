@@ -1,4 +1,4 @@
-# Geometric Algebra for Physics Learning
+# Geometric Algebra for Physic-Informed Neural Networks
 
 A demonstration of **Geometric Algebra** for learning physical laws from data.
 This project compares a **Standard Transformer** against a **Geo-Llama Rotor RNN** on an N-body gravity simulation.
@@ -17,8 +17,8 @@ By embedding the state into a **Geometric Algebra (Cl(4,1))** multivector and us
 - `train.py`: Trains both models and compares them on **Energy Drift** and **MSE**.
 - `algebra.py`: The Geometric Algebra kernel (from Geo-Llama).
 
-## Measured Results (The "Four Kings" Benchmark)
-Comparison of Standard Transformer, Graph Network (GNS), Hamiltonian NN (HNN), and GeoLlama over a 100-step prediction rollout.
+## Comparative Benchmarking Results
+Analysis of the **Standard Transformer**, **Graph Network Simulator (GNS)**, **Hamiltonian Neural Network (HNN)**, and **GeoLlama** architectures over a 100-step autoregressive rollout.
 
 | Model | MSE (Motion) | Energy Drift (Physics) | Notes |
 |-------|--------------|------------------------|-------|
@@ -27,21 +27,21 @@ Comparison of Standard Transformer, Graph Network (GNS), Hamiltonian NN (HNN), a
 | HNN (Energy-based) | 11.12 | **61.86** | Great physics, average motion |
 | **GeoLlama (Rotor RNN)** | **5.45** | **66.13** | **Best performance on balance** |
 
-### In-Depth Model Analysis: Why do they behave this way?
+### Comprehensive Architectural Analysis
 
-#### 1. Standard Transformer (The "Black Box")
+#### 1. Standard Transformer (Baseline Architecture)
 *   **Performance**: High MSE, high Energy Drift.
 *   **Why**: Transformers are universal function approximators but have no concept of 3D space. They treat $(x, y, z)$ as independent numbers rather than a vector. In autoregressive rollouts, small errors in coordinate prediction compound into "non-physical" states (e.g., a planet suddenly gaining mass/energy), causing the system to explode.
 
-#### 2. GNS - Graph Network Simulator (The "Relational King")
+#### 2. GNS - Graph Network Simulator (Relational Inductive Bias)
 *   **Performance**: Worst MSE/Drift in this specific task.
 *   **Why**: GNS is designed for local interactions (like sand or fluid). For a global system like 5-body gravity, the graph is fully connected. GNS update steps are purely additive; without a global conservation prior, the "message-passing" errors aggregate across the particles, leading to massive energy drift (1200+) where the system loses all structure.
 
-#### 3. HNN - Hamiltonian Neural Network (The "Energy King")
+#### 3. HNN - Hamiltonian Neural Network (Energy-Conserving Architecture)
 *   **Performance**: Best Energy Drift, Moderate MSE.
 *   **Why**: HNNs are mathematically forced to conserve energy because they predict a scalar potential $H$ and derive motion from it. This is why its drift is so low (61.8). However, the mapping from raw coordinates $(q, p)$ to a stable Hamiltonian surface is difficult to learn precisely from small data, leading to "accurate-ish" motion but slightly higher coordinate error than GeoLlama.
 
-#### 4. GeoLlama - Rotor RNN (The "Winner")
+#### 4. GeoLlama - Rotor RNN (Proposed Architecture)
 *   **Performance**: Best MSE, near-perfect Energy Stability.
 *   **Why**:
     *   **Rotational Invariance**: Because it operates in $Cl(4,1)$ Geometric Algebra, a rotation of the solar system is just a change in the rotor state, not a new pattern to learn.
