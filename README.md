@@ -120,7 +120,7 @@ We posit that future scaling won't come from increasing parameters, but from inc
 
 ## 8. Conclusion
 
-The history of AI has been a race toward "brute-force" statistics. Geo-Llama introduces a pivot toward **Human-Centric Geometry.** By embedding knowledge in a $Cl_{4,1}$ conformal manifold, we provide the AI with a sense of "space," "permanence," and "logical hierarchy."
+The history of AI has been a race toward "brute-force" statistics. Geo-Llama introduces a pivot toward **Human-Centric Geometry.** By embedding knowledge in a $Cl_{4,1}$ conformal manifold, we provide the AI with a sense of "space," "permanence," and "logical hierarchy," enabling transformative applications in neural physics engines, robotic control, and protein folding.
 
 **Current Status:** Theory validation and kernel optimization for specialized structural benchmarks.
 
