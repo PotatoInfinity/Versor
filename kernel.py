@@ -139,7 +139,7 @@ if HAS_TRITON:
         
         norm_sq = tl.sum(x * x * sig[None, :], axis=1)
         abs_norm = tl.sqrt(tl.abs(norm_sq) + eps)
-        l2_norm = tl.sqrt(tl.sum(x * x, axis=1)) / 4.0 + eps
+        l2_norm = tl.sqrt(tl.sum(x * x, axis=1)) + eps
         denom = tl.maximum(tl.maximum(abs_norm, l2_norm), 1.0)
         tl.store(x_ptr + offs[:, None] * 32 + d_idx[None, :], x / denom[:, None], mask=mask[:, None])
 
@@ -273,7 +273,7 @@ if HAS_MLX:
         sig = mx.where((c * (c - 1) // 2) % 2 == 1, -sig, sig)
         norm_sq = mx.sum(x * x * sig, axis=-1, keepdims=True)
         abs_norm = mx.sqrt(mx.abs(norm_sq) + eps)
-        l2_norm = mx.sqrt(mx.sum(x * x, axis=-1, keepdims=True)) / 4.0 + eps
+        l2_norm = mx.sqrt(mx.sum(x * x, axis=-1, keepdims=True)) + eps
         denom = mx.maximum(mx.maximum(abs_norm, l2_norm), 1.0)
         return x / denom
 
@@ -334,7 +334,41 @@ def geometric_product(a, b):
     if isinstance(a, torch.Tensor) and HAS_TRITON and a.is_cuda:
         # Simple GeMM where N=1 and K=1
         return geometric_linear(a.unsqueeze(-2), b.transpose(-1, -2).unsqueeze(-2)).squeeze(-2)
-    return a * b # Fallback
+    # Correct CPU implementation of Geometric Product
+    # a: (..., 32), b: (..., 32)
+    device = a.device if isinstance(a, torch.Tensor) else "cpu"
+    S = torch.from_numpy(get_sign_matrix("numpy")).to(device) # (32, 32) -> S[i, k] is sign for e_i * e_{i^k} -> e_k
+    
+    # We want c[..., k] = sum_i (a[..., i] * b[..., i^k] * S[i, k])
+    idx = torch.arange(32, device=device)
+    k_idx = idx.unsqueeze(0) # (1, 32)
+    i_idx = idx.unsqueeze(1) # (32, 1)
+    b_indices = i_idx ^ k_idx # (32, 32) -> [i, k] gives index of b to pick
+    
+    # b_perm: (..., 32, 32) where last dims are i, k
+    # Gather is tricky with arbitrary batch dims.
+    # Use broadcasting if possible.
+    # b[..., b_indices] works if we treat ... as flat or handled correctly.
+    # safer: b[..., b_indices] expands b to include i, k dims?
+    
+    # Let's align dimensions.
+    # a: (..., 32) -> (..., 32, 1) (i, k=1)
+    a_exp = a.unsqueeze(-1)
+    
+    # b needs to be permuted. 
+    # b[..., i^k]
+    # We can do: b_new[..., i, k] = b[..., i^k]
+    # This is equivalent to: b_new = b[..., b_indices]
+    
+    b_perm = b[..., b_indices] # (..., 32, 32)
+    
+    # S: (32, 32) (i, k)
+    
+    # res = sum_i (a[..., i, 1] * b[..., i, k] * S[i, k])
+    # sum over i (dim -2)
+    
+    res = torch.sum(a_exp * b_perm * S, dim=-2)
+    return res
 
 # Aliases for different naming conventions
 gapu_geometric_product = geometric_product
@@ -347,39 +381,63 @@ def geometric_linear_layer(x, weight):
     
     # Correct & Robust CPU Fallback
     # x: (..., K, 32), weight: (N, K, 32)
-    with torch.no_grad():
-        device = x.device if isinstance(x, torch.Tensor) else "cpu"
-        S = torch.from_numpy(get_sign_matrix("numpy")).to(device)
-        
-        # We need: out[..., n, j] = sum_k sum_i (x[..., k, i] * weight[n, k, i^j] * S[i, j])
-        # weight_perm[n, k, j, i] = weight[n, k, i^j]
-        idx = torch.arange(32, device=device)
-        j_idx, i_idx = torch.meshgrid(idx, idx, indexing='ij')
-        k_idx = i_idx ^ j_idx # (32, 32) -> [j, i]
-        
-        w_perm = weight[:, :, k_idx] # (N, K, 32, 32)
-        
-        # Use einsum for clarity and correctness on CPU
-        # b: batch/sequence dims, n: out_features, k: in_features, j: out_basis, i: in_basis
-        if x.dim() == 3: # (B*S, K, 32) or (B, K, 32)
-            # x: bki, w_perm: nkj i, S: i j
-            # Actually w_perm already has i^j logic. 
-            # So: sum_k,i (x[..., k, i] * w_perm[n, k, j, i] * S[i, j])
-            return torch.einsum('bki, nkj i, ij -> bnj', x, w_perm, S)
-        elif x.dim() == 4: # (B, S, K, 32)
-            return torch.einsum('bski, nkj i, ij -> bsnj', x, w_perm, S)
-        else:
-            # Generic fallback for any number of batch dims
-            x_flat = x.reshape(-1, x.shape[-2], 32)
-            res = torch.einsum('bki, nkj i, ij -> bnj', x_flat, w_perm, S)
-            return res.reshape(*x.shape[:-2], weight.shape[0], 32)
+    device = x.device if isinstance(x, torch.Tensor) else "cpu"
+    S = torch.from_numpy(get_sign_matrix("numpy")).to(device)
+    
+    # We need: out[..., n, j] = sum_k sum_i (x[..., k, i] * weight[n, k, i^j] * S[i, j])
+    # weight_perm[n, k, j, i] = weight[n, k, i^j]
+    idx = torch.arange(32, device=device)
+    j_idx, i_idx = torch.meshgrid(idx, idx, indexing='ij')
+    k_idx = i_idx ^ j_idx # (32, 32) -> [j, i]
+    
+    w_perm = weight[:, :, k_idx] # (N, K, 32, 32)
+    
+    # Use einsum for clarity and correctness on CPU
+    # b: batch/sequence dims, n: out_features, k: in_features, j: out_basis, i: in_basis
+    if x.dim() == 3: # (B*S, K, 32) or (B, K, 32)
+        # x: bki, w_perm: nkj i, S: i j
+        # Actually w_perm already has i^j logic. 
+        # So: sum_k,i (x[..., k, i] * w_perm[n, k, j, i] * S[i, j])
+        return torch.einsum('bki, nkj i, ij -> bnj', x, w_perm, S)
+    elif x.dim() == 4: # (B, S, K, 32)
+        return torch.einsum('bski, nkj i, ij -> bsnj', x, w_perm, S)
+    else:
+        # Generic fallback for any number of batch dims
+        x_flat = x.reshape(-1, x.shape[-2], 32)
+        res = torch.einsum('bki, nkj i, ij -> bnj', x_flat, w_perm, S)
+        return res.reshape(*x.shape[:-2], weight.shape[0], 32)
     
 def manifold_normalization(x, eps=1e-6):
     if HAS_MLX and isinstance(x, mx.array):
         return manifold_norm_mlx(x, eps)
-    if isinstance(x, torch.Tensor) and HAS_TRITON and x.is_cuda:
-        return manifold_norm_triton(x, eps)
-    return x # Minimal CPU fallback
+    # if isinstance(x, torch.Tensor) and HAS_TRITON and x.is_cuda:
+    #     return manifold_norm_triton(x, eps)
+    # Correct CPU implementation
+    device = x.device if isinstance(x, torch.Tensor) else "cpu"
+    sig = torch.from_numpy(get_sign_matrix("numpy")).to(device)
+    # We need the metric signature, which is diagonal of S?
+    # Actually S[i, i] gives metric of e_i * e_i?
+    # e_i * e_i = (+/-) 1.
+    # get_sign_matrix: S[i, k] is sign of ei * e(i^k).
+    # so S[i, 0] is sign of ei * ei ? No. k=0 means i^k = i. so ei * ei -> scalar?
+    # Wait, e_i * e_i = \pm 1.
+    # S[i, 0] corresponds to ei * ei = S[i,0] e0 (if e0=1).
+    # Yes.
+    
+    # Extract metric signature from S column 0
+    metric_sig = sig[:, 0] # (32,)
+    
+    # Quadratic Norm (Reverse Norm): (x * ~x)_scalar
+    # ~x changes signs of grades 2, 3.
+    # Let's just use the robust L2-ish norm logic from other kernels
+    # norm_sq = sum(x_i^2 * sig_i)
+    
+    norm_sq = torch.sum(x * x * metric_sig, dim=-1, keepdim=True)
+    abs_norm = torch.sqrt(torch.abs(norm_sq) + eps)
+    l2_norm = torch.sqrt(torch.sum(x * x, dim=-1, keepdim=True)) + eps
+    denom = torch.max(torch.max(abs_norm, l2_norm), torch.tensor(1.0, device=device))
+    
+    return x / denom
 
 # =================================================================
 # 4. BENCHMARK SUITE (UNBEATABLE EDITION)
