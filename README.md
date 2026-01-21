@@ -1,7 +1,7 @@
 # Geo-Llama: Foundational Theory of Structural Intelligence via Conformal Manifolds and $Cl_{4,1}$ Recursive Isometries
 
 **Date:** January 20th, 2026  
-**Authors:** Trương Minh Huy [![ORCID](https://img.shields.io/badge/ORCID-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0006-2571-6445), Edward George Hirst [![ORCID](https://img.shields.io/badge/ORCID-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0000-0003-1699-4399)
+**Authors:** Trương Minh Huy [![ORCID](https://img.shields.io/badge/ORCID-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0009-0006-2571-6445), Edward George Hirst [![ORCID](https://img.shields.io/badge/ORCID-A6CE39?logo=orcid&logoColor=white)](https://orcid.org/0000-0003-1699-4399) \
 **Subject:** Geometric Deep Learning, Isotropic Spatio-Temporal Modeling, Structural Latent Manifolds
 
 ![Version](https://img.shields.io/badge/version-1.1.0--theoretical-blue) ![Algebra](https://img.shields.io/badge/algebra-Cl(4,1)-red) ![Status](https://img.shields.io/badge/status-Research_In_Progress-orange) [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18320795-blue)](https://doi.org/10.5281/zenodo.18320795)
