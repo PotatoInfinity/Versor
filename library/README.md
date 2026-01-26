@@ -40,7 +40,10 @@ For massive workloads, the GPU throughput is truly transformative. In a stress t
 #### The Scaling Law
 The speedup $S$ as a function of the number of operations $N$ follows the asymptotic model:
 
-$$S(N) = \frac{N \cdot t_{legacy}}{t_{launch} + N \cdot t_{accelerated}} \approx \frac{t_{legacy}}{t_{accelerated} + \frac{K}{N}}$$
+$$
+S(N) = \frac{N \cdot t_{legacy}}{t_{launch} + N \cdot t_{accelerated}} \approx \frac{t_{legacy}}{t_{accelerated} + \frac{K}{N}}
+$$
+
 
 Where:
 *   $t_{legacy}$: Persistent per-op cost of table lookups (CPU).
@@ -119,45 +122,75 @@ MIT License. Based on the original work of the `clifford` project contributors.
 
 ### Appendix A: Derivation of the Bit-Masked Geometric Product
 
-**Goal:** Derive a closed-form bitwise expression for the geometric product $C = AB$ for any two basis blades $e_i, e_j$ in the Conformal Geometric Algebra $\mathcal{Cl}_{4,1}$, such that $e_i e_j = \sigma(i,j) \cdot \eta(i,j) \cdot e_{i \oplus j}$.
+**Goal:** Derive a closed-form bitwise expression for the geometric product $C = AB$ for any two basis blades $e\_i, e\_j$ in the Conformal Geometric Algebra $\mathcal{Cl}\_{4,1}$, such that $e\_i e\_j = \sigma(i,j) \cdot \eta(i,j) \cdot e\_{i \oplus j}$.
 
-We prove that the geometric product in $\mathcal{Cl}_{4,1}$ is isomorphic to a fused bitwise transformation $\phi(a,b) = (a \oplus b, \text{sgn}(a,b))$, where the sign is a closed-form parity function of the bit-interleaving.
+We prove that the geometric product in $\mathcal{Cl}\_{4,1}$ is isomorphic to a fused bitwise transformation $\phi(a,b) = (a \oplus b, \text{sgn}(a,b))$, where the sign is a closed-form parity function of the bit-interleaving.
 
 #### 1. The Basis Isomorphism $\phi$
-We define an isomorphism $\phi: \mathcal{G} \to \mathbb{Z}_2^n$ between the Grassmann basis $\mathcal{G}$ and the $n$-dimensional bit-field. For any blade $e_S$, $\phi(e_S) = \sum_{k \in S} 2^k$. The geometric product $e_i e_j$ is then mapped to the bitwise domain as:
-$$\phi(e_i e_j) = (\phi(e_i) \oplus \phi(e_j), \text{sgn}(\phi(e_i), \phi(e_j)))$$
+We define an isomorphism $\phi: \mathcal{G} \to \mathbb{Z}\_2^n$ between the Grassmann basis $\mathcal{G}$ and the $n$-dimensional bit-field. For any blade $e\_S$, $\phi(e\_S) = \sum\_{k \in S} 2^k$. The geometric product $e\_i e\_j$ is then mapped to the bitwise domain as:
+
+$$
+\phi(e_i e_j) = (\phi(e_i) \oplus \phi(e_j), \text{sgn}(\phi(e_i), \phi(e_j)))
+$$
+
 where $\oplus$ is the bitwise XOR operator and $\text{sgn}$ captures the topological parity and metric signature.
 
+
 #### 2. Bitmask Representation
-Let the basis vectors $\{e_1, e_2, e_3, e_+, e_-\}$ be mapped to indices $\{0, 1, 2, 3, 4\}$. We represent any basis blade $e_S$ as an integer bitmask $i \in \{0, \dots, 31\}$, where:
-$$i = \sum_{k \in S} 2^k$$
-*Example:* The bivector $e_{12}$ is represented by the bitmask $2^0 + 2^1 = 3$ (binary `00011`).
+Let the basis vectors $\{e\_1, e\_2, e\_3, e\_+, e\_-\}$ be mapped to indices $\{0, 1, 2, 3, 4\}$. We represent any basis blade $e\_S$ as an integer bitmask $i \in \{0, \dots, 31\}$, where:
+
+$$
+i = \sum_{k \in S} 2^k
+$$
+
+*Example:* The bivector $e\_{12}$ is represented by the bitmask $2^0 + 2^1 = 3$ (binary `00011`).
 
 #### 3. Target Index Isomorphism
 The geometric product of two blades is defined by the juxtaposition of their basis vectors. Vectors appearing in both blades contract, while unique vectors remain. This is equivalent to the **Symmetric Difference** of the sets of basis indices.
-$$\text{index}(e_i e_j) = i \oplus j$$
+
+$$
+\text{index}(e_i e_j) = i \oplus j
+$$
+
 This proves that the resulting blade's basis is always found at the XORed index, eliminating the need for search or hash maps.
+
 
 #### 4. The Geometric Sign (Anti-commutativity)
 The sign $\sigma(i,j) \in \{1, -1\}$ arises from the number of swaps required to move all basis vectors in $e_j$ to their canonical positions relative to $e_i$.
-1. Let $e_i = e_{a_1} e_{a_2} \dots e_{a_m}$ and $e_j = e_{b_1} e_{b_2} \dots e_{b_n}$.
-2. Each move incurs a sign change $(-1)$ due to $e_a e_b = -e_b e_a$.
-3. The total number of swaps $N$ is the count of pairs $(k,l)$ such that $\text{index}(a_k) > \text{index}(b_l)$.
+1. Let $e\_i = e\_{a\_1} e\_{a\_2} \dots e\_{a\_m}$ and $e\_j = e\_{b\_1} e\_{b\_2} \dots e\_{b\_n}$.
+2. Each move incurs a sign change $(-1)$ due to $e\_a e\_b = -e\_b e\_a$.
+3. The total number of swaps $N$ is the count of pairs $(k,l)$ such that $\text{index}(a\_k) > \text{index}(b\_l)$.
 
 **Bitwise Optimization:**
 Summing over all bits in $j$ provides the total swap parity. A more efficient parallel version used in our Triton kernel is:
-$$N_{\text{swaps}} = \sum_{k=0}^{n-1} [j_k \cdot \text{popcount}(i \gg (k+1))]$$
+
+$$
+N_{\text{swaps}} = \sum_{k=0}^{n-1} [j_k \cdot \text{popcount}(i \gg (k+1))]
+$$
+
 The sign is then: $\sigma(i,j) = (-1)^{N_{\text{swaps}}}$.
 
+
 #### 5. Metric Signature Contraction
-The metric $\eta$ defines the result of $e_k^2$. In $\mathcal{Cl}_{4,1}$, the signature is $(1, 1, 1, 1, -1)$.
+The metric $\eta$ defines the result of $e\_k^2$. In $\mathcal{Cl}\_{4,1}$, the signature is $(1, 1, 1, 1, -1)$.
 1. Contraction occurs only for basis vectors present in both $i$ and $j$, defined by the bitwise AND: `mask_intersect = i & j`.
-2. Since $\eta_{kk} = -1$ only for the 5th basis vector ($e_-$ at index 4), the metric sign $\eta(i,j)$ is:
-   $$\eta(i,j) = \begin{cases} -1 & \text{if } (i \ \& \ j \ \& \ 16) \neq 0 \\ 1 & \text{otherwise} \end{cases}$$
+2. Since $\eta\_{kk} = -1$ only for the 5th basis vector ($e\_-$ at index 4), the metric sign $\eta(i,j)$ is:
+
+$$
+\eta(i,j) = \begin{cases} -1 & \text{if } (i \mathbin{\\&} j \mathbin{\\&} 16) \neq 0 \\\\ 1 & \text{otherwise} \end{cases}
+$$
+
+
+
+
 
 #### 6. Final Fused Computation
 The coefficient for the product of two multivectors $A$ and $B$ at index $k$ is:
-$$C_k = \sum_{i \oplus j = k} A_i B_j \cdot (-1)^{\text{parity}(i,j)} \cdot \eta(i,j)$$
+
+$$
+C_k = \sum_{i \oplus j = k} A_i B_j \cdot (-1)^{\text{parity}(i,j)} \cdot \eta(i,j)
+$$
+
 
 ---
 
@@ -172,13 +205,13 @@ Let $n$ be the number of basis vectors (for CGA, $n=5$) and $D = 2^n$ be the tot
 *   **The Bit-Masked Method ($T_{bit}$):** We iterate through all $D^2$ pairs. For each pair, we compute the sign and index using bit-logic.
     *   **Complexity:** $n \cdot D^2$.
     *   **For CGA:** $5 \cdot 32^2 = 5,120$ ops.
-*   **Theoretical Speedup ($\alpha$):** $\frac{D^3}{n \cdot D^2} = \frac{D}{n} = 6.4\times$.
+    *   **Theoretical Speedup ($\alpha$):** $\frac{D^3}{n \cdot D^2} = \frac{D}{n} = 6.4 \times$
 
 #### 2. The Memory Wall: Latency Proof
 In modern GPU architectures, math is "cheap" but memory is "expensive."
 *   **Cayley Table Method:** Fetching `SignTable[i][j]` from memory incurs latency. L1 cache latency is $\sim 20$–$80$ cycles. Shared Memory can face bank conflicts.
 *   **Bit-Masked Method:** Zero table lookups. Sign and index are computed using register-local bitwise instructions (`xor`, `and`, `vpopcnt`) with $\sim 1$ cycle latency.
-*   **Latency Speedup ($\beta$):** $\frac{\text{Latency}_{\text{Mem}}}{n \cdot \text{Latency}_{\text{ALU}}} \approx 8\times$.
+*   **Latency Speedup ($\beta$):** $\frac{\text{Latency}\_{\text{Mem}}}{n \cdot \text{Latency}\_{\text{ALU}}} \approx 8 \times$.
 
 #### 3. Operational Intensity ($I$)
 The Roofline Model defines performance by "Operations per Byte" ($I = \text{Ops}/\text{Bytes}$).
