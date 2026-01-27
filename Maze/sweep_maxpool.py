@@ -296,7 +296,7 @@ def generate_dataset(size: int, n_samples: int, d_vectors: int = 8):
     
     X_t = torch.tensor(np.array(X_list), device=target_dev)
     Y_t = torch.tensor(np.array(Y_list), device=target_dev)
-    X_proj = conformal_projection(X_t.to(DEVICE)).unsqueeze(2).repeat(1, 1, d_vectors, 1)
+    X_proj = conformal_projection(X_t.to(DEVICE)).unsqueeze(2).expand(-1, -1, d_vectors, -1)
     return X_proj.cpu(), Y_t.cpu(), coords_t.cpu()
 
 # =================================================================
