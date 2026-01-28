@@ -296,8 +296,20 @@ def generate_dataset(size: int, n_samples: int, d_vectors: int = 8):
     
     X_t = torch.tensor(np.array(X_list), device=target_dev)
     Y_t = torch.tensor(np.array(Y_list), device=target_dev)
-    X_proj = conformal_projection(X_t.to(DEVICE)).unsqueeze(2).expand(-1, -1, d_vectors, -1)
-    return X_proj.cpu(), Y_t.cpu(), coords_t.cpu()
+    
+    # Process conformal projection in batches to avoid OOM
+    batch_size = 1000  # Process 1000 samples at a time
+    X_proj_list = []
+    for i in range(0, n_samples, batch_size):
+        end_idx = min(i + batch_size, n_samples)
+        X_batch = X_t[i:end_idx].to(DEVICE)
+        X_batch_proj = conformal_projection(X_batch).unsqueeze(2).expand(-1, -1, d_vectors, -1)
+        X_proj_list.append(X_batch_proj.cpu())
+        del X_batch, X_batch_proj
+        torch.cuda.empty_cache()
+    
+    X_proj = torch.cat(X_proj_list, dim=0)
+    return X_proj, Y_t, coords_t
 
 # =================================================================
 # BENCHMARK EVALUATION ENGINE
