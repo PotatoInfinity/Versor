@@ -38,6 +38,26 @@ class VersorLinear(nn.Module):
         Optimization reduces the contraction complexity from O(32^3) per 
         element to a linearized manifold application.
         """
+        # Try to use the optimized kernel from gacore library
+        try:
+            import sys
+            import os
+            # Ensure library is in path to find gacore
+            # Assuming file layout: Versor/Model/layers.py
+            # library is at Versor/library
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            lib_dir = os.path.join(root_dir, "library")
+            if lib_dir not in sys.path:
+                sys.path.append(lib_dir)
+            import gacore.kernel as kernel
+            # Default signature for Cl(4,1)
+            signature = [1, 1, 1, 1, -1]
+            out = kernel.geometric_linear_layer(x, self.weight, signature)
+            return normalize_cl41(out)
+        except ImportError as e:
+            # Fallback to local logic if gacore not found
+            pass
+
         device = x.device
         batch, seq, _, _ = x.shape
         
@@ -108,10 +128,26 @@ class VersorAttention(nn.Module):
         # Acceleration via standard matrix factorization over weighted components
         scalar_score = torch.matmul(q_flat, k_flat.transpose(-1, -2))
         
-        # Bivector components are computationally heavy at N=1024.
-        # We use the scalar score as the primary driver for high-res grids 
-        # to achieve near-Vanilla training speeds.
+        # GPA Score: Incorporates both scalar similarity and orientational torque.
+        # Torque is represented by the magnitude of the bivector components 
+        # in the Geometric Product Q * K.
+        
+        # 2. Bivector Score (Torque/Orientation)
+        # For physics, this is critical to capture orthogonal interactions.
+        # We use the relation ||Q ^ K||^2 = ||Q||^2 ||K||^2 - (Q · K)^2
+        
         score = scalar_score / (self.head_dim ** 0.5)
+        
+        if self.attn_lambda != 0:
+            q_norm_sq = torch.sum(q_flat**2, dim=-1, keepdim=True)
+            k_norm_sq = torch.sum(k_flat**2, dim=-1, keepdim=True)
+            dot_sq = scalar_score**2
+            # ||Q ^ K|| is the magnitude of the bivector, representing the 'torque'
+            torque_sq = torch.relu(q_norm_sq * k_norm_sq.transpose(-1, -2) - dot_sq)
+            torque_score = torch.sqrt(torque_sq + 1e-6) / (self.head_dim ** 0.5)
+            
+            score = score + self.attn_lambda * torque_score
+        
         attn_probs = torch.softmax(score, dim=-1)
         
         # Weighted accumulation of Value multivectors
@@ -122,7 +158,9 @@ class VersorAttention(nn.Module):
         out = self.o_proj(out)
         
         if return_attention:
-            return out, attn_probs
+            # Return both the standard attention probability and the raw bivector intensity
+            # for the "Qualitative Proof" plot.
+            return out, (attn_probs, torque_score if self.attn_lambda != 0 else torch.zeros_like(attn_probs))
         return out
 
     def __repr__(self):

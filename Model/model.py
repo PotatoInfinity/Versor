@@ -55,32 +55,37 @@ class VersorBlock(nn.Module):
 
 class RecursiveRotorAccumulator(nn.Module):
     """
-    Vectorized ensemble transformation for sequence dimensionality reduction.
-    
-    This implementation leverages a parallelized manifold state summation, 
-    ensuring numerical stability for extensive sequence lengths. 
-    The temporal sequence is projected onto a Geometric Stream, subject to 
-    manifold normalization to maintain physical boundedness.
+    True Recursive Rotor Accumulator (RRA).
+    Implements \Psi_{t+1} = \Delta R_t \Psi_t with manifold normalization.
     """
     def __init__(self, embed_dim):
         super().__init__()
-        # Project each time step to a 'delta-rotor'
-        self.mixer = VersorLinear(embed_dim, embed_dim)
+        # Project each time step to a 'delta-rotor' generator (Bivector)
+        self.rotor_gen = VersorLinear(embed_dim, embed_dim)
         
     def forward(self, x):
         # x: (B, S, D, 32)
+        B, S, D, _ = x.shape
         
-        # 1. Transform sequence to delta-rotors
-        delta = self.mixer(x) 
+        # 1. Transform sequence to rotor generators (Bivectors)
+        # Using the exponential map approximation: R = exp(B/2) \approx 1 + B/2
+        delta_b = self.rotor_gen(x) 
         
-        # Calculation of the mean multivector representation (Global Latent Context)
-        # This acts as a 'Canonical Mean Rotor' providing superior stability over 
-        # sequential recursive transformations.
-        psi = delta.mean(dim=1) 
+        # 2. Sequential Accumulation
+        # Start with identity spinor (Grade 0 = 1)
+        psi = torch.zeros(B, D, 32, device=x.device)
+        psi[..., 0] = 1.0 
         
-        # Nonlinear squashing to regulate multivector magnitude
-        psi = torch.tanh(psi) 
-        return normalize_cl41(psi)
+        for t in range(S):
+            # Current step's rotor
+            r_t = delta_b[:, t]
+            # \Psi_{t+1} = r_t * \Psi_t (Geometric Product)
+            # We treat this as a per-channel geometric product
+            psi = gp_cl41(r_t, psi)
+            # Manifold Normalization to prevent drift
+            psi = normalize_cl41(psi)
+            
+        return psi
 
 class VersorTransformer(nn.Module):
     """
