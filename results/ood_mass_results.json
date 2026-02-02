@@ -1,0 +1,14 @@
+{
+    "normal": {
+        "transformer": 4.182683944702148,
+        "versor": 1.8116909265518188
+    },
+    "heavy": {
+        "transformer": 353.62255859375,
+        "versor": 4.416232585906982
+    },
+    "increase_percent": {
+        "transformer": 8354.441293410508,
+        "versor": 143.7630238791543
+    }
+}
