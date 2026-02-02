@@ -95,6 +95,27 @@ def run_ood_test():
     print(f"\nMSE Increase:")
     print(f"  Transformer: {inc_trans:.1f}% (Paper claims 450%)")
     print(f"  Versor:      {inc_versor:.1f}% (Paper claims 12%)")
+    
+    # Save results
+    output = {
+        "normal": {
+            "transformer": mse_trans_norm,
+            "versor": mse_versor_norm
+        },
+        "heavy": {
+            "transformer": mse_trans_heavy,
+            "versor": mse_versor_heavy
+        },
+        "increase_percent": {
+            "transformer": inc_trans,
+            "versor": inc_versor
+        }
+    }
+    os.makedirs('results', exist_ok=True)
+    with open('results/ood_mass_results.json', 'w') as f:
+        json.dump(output, f, indent=4)
+    print("\n✓ Results saved to results/ood_mass_results.json")
 
 if __name__ == "__main__":
+    import json
     run_ood_test()
