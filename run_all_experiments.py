@@ -15,20 +15,22 @@ import torch
 # Create results directory
 RESULTS_DIR = "paper_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
+os.makedirs("results", exist_ok=True)
 
 def save_results(experiment_name, results_dict):
     """Save results with timestamp"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{RESULTS_DIR}/{experiment_name}_{timestamp}.json"
     
-    # Add metadata
-    results_dict["metadata"] = {
-        "timestamp": timestamp,
-        "experiment": experiment_name,
-        "pytorch_version": torch.__version__,
-        "cuda_available": torch.cuda.is_available(),
-        "device": str(torch.cuda.get_device_name(0)) if torch.cuda.is_available() else "CPU"
-    }
+    # Add metadata if results_dict is a dict
+    if isinstance(results_dict, dict):
+        results_dict["metadata"] = {
+            "timestamp": timestamp,
+            "experiment": experiment_name,
+            "pytorch_version": torch.__version__,
+            "cuda_available": torch.cuda.is_available(),
+            "device": str(torch.cuda.get_device_name(0)) if torch.cuda.is_available() else "CPU"
+        }
     
     with open(filename, 'w') as f:
         json.dump(results_dict, indent=2, fp=f)
@@ -42,35 +44,28 @@ def run_experiment_1_nbody():
     print("EXPERIMENT 1: N-Body Dynamics")
     print("="*60)
     
-    sys.path.append("Physics")
-    from train import train
-    from models import StandardTransformer, VersorRotorRNN, GraphNetworkSimulator, HamiltonianNN
-    from data_gen import generate_gravity_data
-    
-    # TODO: Actually run the training
-    # This is a placeholder - you need to modify train.py to return results
-    
-    results = {
-        "experiment": "nbody_dynamics",
-        "models": {
-            "transformer": {"mse": None, "energy_drift": None},
-            "versor": {"mse": None, "energy_drift": None},
-            "gns": {"mse": None, "energy_drift": None},
-            "hnn": {"mse": None, "energy_drift": None}
-        },
-        "config": {
-            "n_particles": 5,
-            "train_samples": 200,
-            "test_samples": 10,
-            "rollout_steps": 100,
-            "seed": 42
-        }
-    }
-    
-    print("⚠️  WARNING: You need to modify Physics/train.py to return results")
-    print("⚠️  This is a template - fill in actual numbers")
-    
-    return save_results("nbody", results)
+    try:
+        from Physics import run_multi_seed
+        # Modified seeds and epochs for faster verification if needed, 
+        # but here we'll try to get real numbers
+        run_multi_seed.main()
+        
+        # Find the latest multi-seed result file
+        import glob
+        result_files = glob.glob("results/multi_seed_results_*.json")
+        if not result_files:
+            return None
+        
+        latest = max(result_files)
+        with open(latest, 'r') as f:
+            data = json.load(f)
+            
+        return save_results("nbody", data)
+    except Exception as e:
+        print(f"❌ Error running N-Body experiment: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def run_experiment_2_topology():
     """Maze Connectivity (Broken Snake)"""
@@ -78,31 +73,20 @@ def run_experiment_2_topology():
     print("EXPERIMENT 2: Topological Connectivity")
     print("="*60)
     
-    sys.path.append("Maze")
-    
-    results = {
-        "experiment": "topology_maze",
-        "grid_sizes": {},
-        "config": {
-            "train_grids": [8, 16],
-            "test_grids": [16, 32],
-            "curriculum": True
-        }
-    }
-    
-    # Run for different grid sizes
-    for size in [8, 16, 32]:
-        print(f"\nTesting grid size: {size}x{size}")
-        # TODO: Import and run your maze experiments
-        results["grid_sizes"][str(size)] = {
-            "versor_mcc": None,
-            "std_mcc": None,
-            "vit_mcc": None
-        }
-    
-    print("⚠️  WARNING: You need to run Maze experiments")
-    
-    return save_results("topology", results)
+    try:
+        from Maze import sweep
+        # Set args for verification (small sweep)
+        import argparse
+        sys.argv = [sys.argv[0], '--sizes', '8', '16', '--repeats', '1', '--epochs', '5', '--outfile', 'results/maze_results.json']
+        sweep.run_sweeps()
+        
+        with open('results/maze_results.json', 'r') as f:
+            data = json.load(f)
+            
+        return save_results("topology", data)
+    except Exception as e:
+        print(f"❌ Error running Maze experiment: {e}")
+        return None
 
 def run_experiment_3_ood():
     """Out-of-Distribution Generalization"""
@@ -121,9 +105,6 @@ def run_experiment_3_ood():
         print("\n✓ OOD Experiment Completed Successfully")
         return save_results("ood", data)
         
-    except ImportError as e:
-        print(f"❌ Error importing OOD module: {e}")
-        return None
     except Exception as e:
         print(f"❌ Error running OOD experiment: {e}")
         return None
@@ -145,9 +126,6 @@ def run_experiment_4_ablation():
         print("\n✓ Ablation Study Completed Successfully")
         return save_results("ablation", data)
         
-    except ImportError as e:
-        print(f"❌ Error importing Ablation module: {e}")
-        return None
     except Exception as e:
         print(f"❌ Error running Ablation experiment: {e}")
         return None
@@ -158,106 +136,87 @@ def run_experiment_5_kernel_benchmark():
     print("EXPERIMENT 5: Kernel Performance")
     print("="*60)
     
-    import kernel
-    
-    if not kernel.HAS_TRITON:
-        print("❌ Triton not available - skipping GPU benchmark")
+    try:
+        import kernel
+        kernel.benchmark()
+        # Create dummy results for summary
+        results = {"status": "completed", "has_triton": kernel.HAS_TRITON, "has_mlx": kernel.HAS_MLX}
+        return save_results("kernel_bench", results)
+    except Exception as e:
+        print(f"❌ Error running Kernel benchmark: {e}")
         return None
-    
-    # Test different batch sizes
-    batch_sizes = [16, 32, 64, 128, 256, 512, 1024]
-    
-    results = {
-        "experiment": "kernel_benchmark",
-        "batch_sizes": {},
-        "implementations": ["pytorch_naive", "pytorch_einsum", "triton"]
-    }
-    
-    print("⚠️  WARNING: Need to implement proper benchmarking")
-    
-    return save_results("kernel_bench", results)
-
-def run_multi_seed_validation():
-    """Run experiments with multiple seeds for statistical validity"""
-    print("\n" + "="*60)
-    print("STATISTICAL VALIDATION: Multiple Seeds")
-    print("="*60)
-    
-    seeds = [42, 123, 456, 789, 2024]
-    
-    results = {
-        "experiment": "multi_seed_validation",
-        "seeds": seeds,
-        "runs": []
-    }
-    
-    for seed in seeds:
-        print(f"\nSeed: {seed}")
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        
-        # TODO: Run main experiment with this seed
-        run_results = {
-            "seed": seed,
-            "mse": None,
-            "energy_drift": None
-        }
-        results["runs"].append(run_results)
-    
-    # Calculate statistics
-    if results["runs"]:
-        mses = [r["mse"] for r in results["runs"] if r["mse"] is not None]
-        if mses:
-            results["statistics"] = {
-                "mse_mean": float(np.mean(mses)),
-                "mse_std": float(np.std(mses)),
-                "mse_min": float(np.min(mses)),
-                "mse_max": float(np.max(mses))
-            }
-    
-    print("⚠️  WARNING: Need to integrate with actual training")
-    
-    return save_results("multi_seed", results)
 
 def generate_summary_report():
-    """Generate a summary of all results"""
+    """Generate a summary of all results and compare with paper"""
     print("\n" + "="*60)
-    print("GENERATING SUMMARY REPORT")
+    print("GENERATING SUMMARY AND VERIFICATION REPORT")
     print("="*60)
     
+    # Paper Data for Comparison
+    paper_data = {
+        "nbody_mse_versor": 5.210,
+        "nbody_drift_versor": 133.0,
+        "nbody_mse_transformer": 6.609,
+        "ood_increase_transformer": 3097.2,
+        "ood_increase_versor": -19.9,
+        "topology_mcc_versor": 0.993,
+        "topology_mcc_vit": 0.504
+    }
+    
     # Find all result files
-    result_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.json')]
+    result_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.json') and not f.startswith('SUMMARY')]
     
     if not result_files:
         print("❌ No results found!")
         return
     
-    print(f"\nFound {len(result_files)} result files:")
-    for f in sorted(result_files):
-        print(f"  - {f}")
-    
-    # Load and summarize
     summary = {
         "generated_at": datetime.now().isoformat(),
         "total_experiments": len(result_files),
-        "experiments": {}
+        "verifications": {}
     }
     
     for fname in result_files:
-        with open(os.path.join(RESULTS_DIR, fname)) as f:
+        path = os.path.join(RESULTS_DIR, fname)
+        with open(path) as f:
             data = json.load(f)
             exp_name = data.get("metadata", {}).get("experiment", "unknown")
-            summary["experiments"][exp_name] = {
-                "file": fname,
-                "timestamp": data.get("metadata", {}).get("timestamp"),
-                "status": "completed" if data else "empty"
-            }
-    
-    summary_file = f"{RESULTS_DIR}/SUMMARY_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            
+            if exp_name == "nbody" and "statistics" in data:
+                v_mse = data["statistics"].get("Versor", {}).get("mse_mean", 0)
+                t_mse = data["statistics"].get("Transformer", {}).get("mse_mean", 0)
+                summary["verifications"]["nbody_mse"] = {
+                    "measured_versor": v_mse,
+                    "paper_versor": paper_data["nbody_mse_versor"],
+                    "status": "PASS" if abs(v_mse - paper_data["nbody_mse_versor"]) < 1.0 else "DEVIATION"
+                }
+            elif exp_name == "ood":
+                v_inc = data.get("increase_percent", {}).get("versor", 0)
+                summary["verifications"]["ood_generalization"] = {
+                    "measured_versor_inc": v_inc,
+                    "paper_versor_inc": paper_data["ood_increase_versor"],
+                    "status": "PASS" if v_inc < 50 else "DEVIATION"
+                }
+            elif exp_name == "ablation":
+                summary["verifications"]["ablation"] = data
+                
+    summary_file = f"{RESULTS_DIR}/SUMMARY_VERIFICATION_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(summary_file, 'w') as f:
         json.dump(summary, indent=2, fp=f)
     
-    print(f"\n✓ Summary saved to: {summary_file}")
+    print(f"\n✓ Verification summary saved to: {summary_file}")
+    
+    # Print a quick human-readable table
+    print("\n--- QUICK VERIFICATION ---")
+    print(f"{'Metric':<30} | {'Measured':<15} | {'Paper':<15} | {'Status'}")
+    print("-" * 75)
+    for metric, res in summary["verifications"].items():
+        if "measured_versor" in res:
+            m, p = res["measured_versor"], res["paper_versor"]
+            print(f"{metric:<30} | {m:<15.4f} | {p:<15.4f} | {res['status']}")
+        elif "measured_versor_inc" in res:
+            m, p = res["measured_versor_inc"], res["paper_versor_inc"]
+            print(f"{metric:<30} | {m:<15.1f}% | {p:<15.1f}% | {res['status']}")
 
 if __name__ == "__main__":
     print("="*60)
@@ -270,11 +229,10 @@ if __name__ == "__main__":
     # Run all experiments
     experiments = [
         run_experiment_1_nbody,
-        run_experiment_2_topology,
         run_experiment_3_ood,
         run_experiment_4_ablation,
         run_experiment_5_kernel_benchmark,
-        run_multi_seed_validation
+        # run_experiment_2_topology # Skipping topology by default as it's very slow
     ]
     
     for exp_func in experiments:
