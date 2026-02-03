@@ -87,4 +87,4 @@ If you use Versor in your research, please cite:
 ```
 
 ## License
-MIT License
+Apache License 2.0
