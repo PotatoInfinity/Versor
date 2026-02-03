@@ -110,30 +110,23 @@ def run_experiment_3_ood():
     print("EXPERIMENT 3: OOD Generalization (Heavy Masses)")
     print("="*60)
     
-    # This experiment is claimed in the paper but has NO CODE
-    print("❌ ERROR: This experiment has no implementation!")
-    print("   Paper claims (Line 569-572):")
-    print("   - Train on masses m ∈ [0.5, 1.5]")
-    print("   - Test on masses m ∈ [5.0, 10.0]")
-    print("   - Transformer MSE increases 450%")
-    print("   - Versor MSE increases only 12%")
-    print("\n   You need to:")
-    print("   1. Modify data_gen.py to accept mass ranges")
-    print("   2. Train models on normal masses")
-    print("   3. Evaluate on heavy masses")
-    print("   4. Calculate percentage increase")
-    
-    results = {
-        "experiment": "ood_mass_generalization",
-        "status": "NOT_IMPLEMENTED",
-        "claimed_in_paper": {
-            "transformer_increase": "450%",
-            "versor_increase": "12%"
-        },
-        "actual": None
-    }
-    
-    return save_results("ood", results)
+    try:
+        from Physics import recreate_ood
+        recreate_ood.run_ood_test()
+        
+        # Load the results it barely saved
+        with open('results/ood_mass_results.json', 'r') as f:
+            data = json.load(f)
+            
+        print("\n✓ OOD Experiment Completed Successfully")
+        return save_results("ood", data)
+        
+    except ImportError as e:
+        print(f"❌ Error importing OOD module: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Error running OOD experiment: {e}")
+        return None
 
 def run_experiment_4_ablation():
     """Ablation Study (Table, Line 594)"""
@@ -141,29 +134,23 @@ def run_experiment_4_ablation():
     print("EXPERIMENT 4: Ablation Study")
     print("="*60)
     
-    configurations = [
-        "Full Versor",
-        "w/o Manifold Norm",
-        "w/o Recursive Rotor",
-        "w/o Cl(4,1) (Standard Transformer)"
-    ]
-    
-    results = {
-        "experiment": "ablation",
-        "configurations": {}
-    }
-    
-    for config in configurations:
-        print(f"\nTesting: {config}")
-        # TODO: Run ablation
-        results["configurations"][config] = {
-            "mse": None,
-            "notes": "Not implemented"
-        }
-    
-    print("⚠️  WARNING: Ablation experiments not implemented")
-    
-    return save_results("ablation", results)
+    try:
+        from Physics import rigorous_ablation
+        rigorous_ablation.main()
+        
+        # Load the results it saved
+        with open('results/ablation_stats.json', 'r') as f:
+            data = json.load(f)
+            
+        print("\n✓ Ablation Study Completed Successfully")
+        return save_results("ablation", data)
+        
+    except ImportError as e:
+        print(f"❌ Error importing Ablation module: {e}")
+        return None
+    except Exception as e:
+        print(f"❌ Error running Ablation experiment: {e}")
+        return None
 
 def run_experiment_5_kernel_benchmark():
     """Kernel Performance Benchmark"""
