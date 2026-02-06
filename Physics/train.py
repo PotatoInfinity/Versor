@@ -69,7 +69,7 @@ def train(seed=42, model_types=['std', 'versor', 'gns', 'hnn', 'versor_hnn']):
     # Hyperparams
     BATCH_SIZE = 16
     STEPS = 100
-    EPOCHS = 30 
+    EPOCHS = 5 
     LR = 1e-3
     
     # Generate Training Data

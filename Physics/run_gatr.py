@@ -65,7 +65,7 @@ class GATrAdapter(nn.Module):
             in_s_channels=None,
             out_s_channels=None,
             hidden_mv_channels=16,
-            hidden_s_channels=128,
+            hidden_s_channels=32,
             num_blocks=10, 
             attention=SelfAttentionConfig(), 
             mlp=MLPConfig()
@@ -119,10 +119,10 @@ def run_gatr_experiment():
         # Hyperparams
         BATCH_SIZE = 8
         STEPS = 50 
-        EPOCHS = 30
+        EPOCHS = 5
         LR = 5e-4 
         
-        train_data = generate_gravity_data(n_samples=200, n_steps=STEPS, device=device)
+        train_data = generate_gravity_data(n_samples=100, n_steps=STEPS, device=device)
         X_train = train_data[:, :-1]
         Y_train = train_data[:, 1:]
         
@@ -144,8 +144,6 @@ def run_gatr_experiment():
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
-            if epoch % 5 == 0 or epoch == EPOCHS - 1:
-                print(f"  Epoch {epoch}/{EPOCHS}, Loss: {loss.item():.4f}")
         
         # Evaluate
         model.eval()

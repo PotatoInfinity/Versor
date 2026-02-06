@@ -387,11 +387,11 @@ class MultiChannelVersor(nn.Module):
             VersorBlock(n_channels, n_heads) for _ in range(n_layers)
         ])
         
-        # Mixing Layer: Allow information flow between channels
+        # Mixing Layer: Equivariant inter-channel communication
         self.mixing = nn.Sequential(
-            nn.Linear(n_channels * 32, n_channels * 32),
-            nn.GELU(),
-            nn.Linear(n_channels * 32, n_channels * 32)
+            VersorLinear(n_channels, n_channels),
+            VersorActivation(),
+            VersorLinear(n_channels, n_channels)
         )
         self.output_proj = nn.Linear(n_channels * 32, input_dim)
         
@@ -414,12 +414,11 @@ class MultiChannelVersor(nn.Module):
         for block in self.blocks:
             h_in = block(h_in)
             
-        # Mixing
-        h_out = h_in.reshape(B * S, N, -1)
-        h_mixed = h_out + self.mixing(h_out)
+        # Mixing: Clifford-covariant channel interaction
+        h_mixed = h_in + self.mixing(h_in)
         
-        # Projection
-        delta = self.output_proj(h_mixed)
+        # Projection: Map multivectors back to state space
+        delta = self.output_proj(h_mixed.reshape(B * S, N, -1))
         next_state = x_flat + delta
         
         return next_state.reshape(B, S, N, -1)

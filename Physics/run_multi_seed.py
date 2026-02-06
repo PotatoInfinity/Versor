@@ -119,14 +119,14 @@ def run_single_seed(seed, device='cpu'):
     
     # Models
     models = {
-        "Transformer": StandardTransformer(n_particles=5).to(device),
-        "Versor": VersorRotorRNN(n_particles=5).to(device),
-        "GNS": GraphNetworkSimulator(n_particles=5).to(device),
-        "HNN": HamiltonianNN(n_particles=5).to(device),
-        "Mamba": MambaSimulator(n_particles=5).to(device),
+        # "Transformer": StandardTransformer(n_particles=5).to(device),
+        # "Versor": VersorRotorRNN().to(device),
+        # "GNS": GraphNetworkSimulator(n_particles=5).to(device),
+        # "HNN": HamiltonianNN(n_particles=5).to(device),
+        # "Mamba": MambaSimulator(n_particles=5).to(device),
         "Versor-Multi": MultiChannelVersor(n_particles=5, n_channels=16, n_heads=4).to(device),
-        "Ham-Versor": HamiltonianVersorNN(n_particles=5).to(device),
-        "EGNN": EquivariantGNN(n_particles=5).to(device)
+        # "Ham-Versor": HamiltonianVersorNN(n_particles=5).to(device),
+        # "EGNN": EquivariantGNN(n_particles=5).to(device)
     }
     
     results = {}

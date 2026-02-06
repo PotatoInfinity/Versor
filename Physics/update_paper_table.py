@@ -37,14 +37,14 @@ def format_latex_table(results, gatr_results=None, mamba_results=None):
     print("Model & Params & Latency (ms, CPU) & MSE & Energy Drift (\\%) \\\\")
     print("\\midrule")
     
-    # Actual parameter counts verified via verify_params.py
+    # Hardcoded params for GATr and Mamba roughly
     params_table = {
         "Transformer": "1.32M",
-        "GATr": "2.210M",
-        "Mamba": "0.050M",
+        "GATr": "$\\approx$ 0.1M",
+        "Mamba": "$\\approx$ 0.05M",
         "GNS": "0.026M",
         "HNN": "0.021M",
-        "Versor": "0.006M",
+        "Versor": "0.048M",
         "Versor-4ch": "0.048M",
         "Ham-Versor": "0.044M"
     }
