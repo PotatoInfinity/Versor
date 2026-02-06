@@ -77,9 +77,8 @@ If you use Versor in your research, please cite:
 
 ```bibtex
 @article{versor2025,
-  title={Versor: Foundational Theory of Structural Intelligence},
-  author={Versor Team},
-  journal={arXiv preprint},
+  title={Versor: A Geometric Sequence Architecture},
+  author={Truong Minh Huy, Edward Hirst},
   year={2026},
   doi={10.5281/zenodo.18320794},
   url={https://github.com/PotatoInfinity/Versor}
