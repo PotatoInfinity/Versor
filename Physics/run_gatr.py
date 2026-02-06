@@ -119,10 +119,10 @@ def run_gatr_experiment():
         # Hyperparams
         BATCH_SIZE = 8
         STEPS = 50 
-        EPOCHS = 5
+        EPOCHS = 30
         LR = 5e-4 
         
-        train_data = generate_gravity_data(n_samples=100, n_steps=STEPS, device=device)
+        train_data = generate_gravity_data(n_samples=200, n_steps=STEPS, device=device)
         X_train = train_data[:, :-1]
         Y_train = train_data[:, 1:]
         

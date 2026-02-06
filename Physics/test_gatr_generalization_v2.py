@@ -28,7 +28,7 @@ def train_and_eval_model(name, model, device, train_data, test_data_5, test_data
     Y_train = train_data[:, 1:]
     
     model.train()
-    for epoch in range(10):
+    for epoch in range(30):
         optimizer.zero_grad()
         try:
             pred = model(X_train)
@@ -67,7 +67,7 @@ def main():
     
     # Pre-generate data
     print("Generating data...")
-    train_data_5 = generate_gravity_data(n_samples=50, n_steps=100, n_particles=5, device=device)
+    train_data_5 = generate_gravity_data(n_samples=200, n_steps=100, n_particles=5, device=device)
     test_data_5 = generate_gravity_data(n_samples=5, n_steps=100, n_particles=5, device=device)
     test_data_3 = generate_gravity_data(n_samples=5, n_steps=100, n_particles=3, device=device)
     
